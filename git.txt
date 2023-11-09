@@ -1,0 +1,73 @@
+#----------------------- git -------------------#
+
+# git init 
+# git add .
+# git commit -m ""
+# git push origin
+# git log -1 -p
+# git log --pretty=oneline
+
+#----------------------- remote repo  ----------#
+
+подключенные репозитории
+# git remote -v
+
+изменить подключенный репозиторий
+# git remote set-url origin <url>
+
+#----------------------- branch  ---------------#
+
+# git branch <name> && git checkout <name>
+# git checkout -b <name>
+
+слить
+# git merge <name>
+
+удалить пустую ветку
+# git branch -d <name>
+
+удалить ветку с commit
+# git branch -D <name>
+
+создать ветку в remote
+# git push --set-upstream origin <name>
+
+удалить ветку с remote
+# git push origin --delete <name>
+
+#----------------------- отмены  ---------------#
+
+откатить изменения на последний comit
+# git checkout -- file1.txt
+
+временно перейти на старую версию
+# git checkout <hash>
+
+изменить последний коммит
+# git commin --amend 
+
+вернуться на <n> commit (удалить <n> commit)
+# git reset --hard HEAD~<n>
+
+удалить из истории коммиты, не меняя данные
+# git reset --soft HEAD~<n>
+
+перезаписать remote:
+# git push origin main --force
+
+#----------------------- тэги  -----------------#
+
+поставить тэг на старый коммит
+# git tag -a <tag> <hash>
+
+перейти на тэг
+# git checkout <tag>
+
+добавить тэг в remote
+# git push origin <tag>
+
+добавить все тэги в remote
+# git push origin --tags
+
+удалить тэг с remote
+# git push origin --delete <tag>
