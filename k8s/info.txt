@@ -1,0 +1,32 @@
+#----------------------- nodes -------------------#
+kubectl get nodes
+
+#----------------------- cluster -----------------#
+#----------------------- pods --------------------#
+ручное управление pod:
+
+# kubectl get pods
+# kubectl run hello --generator=run-pod/v1 --image=nginx:latest --port=80
+# kubectl delete pods hello
+
+инфо по pod:
+
+# kubectl describe pods hello
+# kubectl logs hello
+
+зайти в pod:
+
+# kubectl exec hello date
+# kubectl exec -it hello bash
+
+проброс порта
+
+# kubectl port-forward my-app 8080:80
+
+управление манифестом:
+
+# kubectl apply -f myfile.yaml
+# kubectl delete -f myfile.yaml
+
+#----------------------- deployments ----------------#
+#----------------------- services -------------------#
