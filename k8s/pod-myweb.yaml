@@ -9,7 +9,7 @@ metadata:
     owner: led
 spec:
   containers:
-    - name: container-apache
-      image: nginx:latest
+    - name: container-web
+      image: nginx
       ports:
         - containerPort: 80
