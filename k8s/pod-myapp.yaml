@@ -10,11 +10,11 @@ metadata:
 spec:
   containers:
     - name: container-web
-      image: nginx:latest
+      image: nginx
       ports:
         - containerPort: 80
 
     - name: container-api
-      image: tomcat:8.5.38
+      image: gcr.io/kodekloud/centos-ssh-enabled:tomcat
       ports:
         - containerPort: 8080
