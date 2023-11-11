@@ -13,7 +13,7 @@
 ручное управление pod:
 
 # kubectl get pods
-# kubectl run hello --image=nginx:latest --port=80
+# kubectl run hello --image=nginx --port=80
 # kubectl delete pods hello
 
 инфо по pod:
@@ -23,8 +23,8 @@
 
 зайти в pod:
 
-# kubectl exec hello date
-# kubectl exec -it hello bash
+# kubectl exec hello -- date
+# kubectl exec -it hello -- bash
 
 проброс порта
 
