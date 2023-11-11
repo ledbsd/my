@@ -1,8 +1,15 @@
 #----------------------- nodes -------------------#
-kubectl get nodes
+
+# kubectl get nodes
+# kubectl label node node1 node-role.kubernetes.io/worker=
 
 #----------------------- cluster -----------------#
+
+# kubectl cluster-info
+# kubectl get componentstatuses
+
 #----------------------- pods --------------------#
+
 ручное управление pod:
 
 # kubectl get pods
