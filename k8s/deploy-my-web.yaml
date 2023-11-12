@@ -17,4 +17,4 @@ spec:
         - name: project1-web
           image: httpd
           ports:
-            containerPort: 80
+            - containerPort: 80
