@@ -38,4 +38,3 @@ spec:
       port: 80                 # Port on LoadBalancer
       targetPort: 80           # Port on POD
   type: LoadBalancer
-    
