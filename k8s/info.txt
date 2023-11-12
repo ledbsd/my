@@ -70,4 +70,10 @@ rolled out:
 передеплоить:
 # kubectl rollout restart deployment/my-deploy
 
+управление deployment:
+
+# kubectl apply -f deploy-my-web.yaml (и для обновления image)
+# kubectl delete -f deploy-my-web.yaml
+# kubectl delete deployment --all
+
 #----------------------- services -------------------#
