@@ -45,7 +45,7 @@
 
 инфо по deployment:
 
-# kubectl describe my-deploy
+# kubectl describe deployment/my-deploy
 
 scaling:
 
@@ -61,7 +61,7 @@ rolled out:
 
 # kubectl rollout history deployment/my-deploy
 # kubectl rollout status deployment/my-deploy
-# kubectl set image deploymeent/my-deploy httpd=nginx --record
+# kubectl set image deployment/my-deploy httpd=nginx
 
 вернуться:
 # kubectl rollout undo deployment/my-deploy
