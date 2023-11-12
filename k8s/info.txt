@@ -92,4 +92,4 @@ rolled out:
 управление services:
 
 # kubectl apply -f service-my-web.yaml
-# kubectl delete -f servicede-my-web.yaml
+# kubectl delete -f service-my-web.yaml
