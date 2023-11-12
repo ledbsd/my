@@ -77,3 +77,19 @@ rolled out:
 # kubectl delete deployment --all
 
 #----------------------- services -------------------#
+
+ручное управление services:
+
+# kubectl expose deployment my-deploy --type=ClusterIP --port 80
+# kubectl expose deployment my-deploy --type=NodePort --port 80
+# kubectl expose deployment my-deploy --type=LoadBalancer --port 80
+# kubectl delete svc my-deploy
+
+инфо по services:
+
+# kubectl get services
+
+управление services:
+
+# kubectl apply -f service-my-web.yaml
+# kubectl delete -f servicede-my-web.yaml
