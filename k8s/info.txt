@@ -32,8 +32,42 @@
 
 управление манифестом:
 
-# kubectl apply -f myfile.yaml
+# kubectl apply -f myfile.yaml (и для обновления image)
 # kubectl delete -f myfile.yaml
 
+
 #----------------------- deployments ----------------#
+
+ручное управление deployment:
+
+# kubectl get deploy
+# kubectl create deployment my-deploy --image httpd
+
+инфо по deployment:
+
+# kubectl describe my-deploy
+
+scaling:
+
+# kubectl scale deployment my-deploy --replicas 4
+# kubectl get rs
+
+autoscaling:
+
+# kubectl autoscale deployment my-deploy --min=4 --max=6 --cpu-percent=80
+# kubectl get hpa
+
+rolled out:
+
+# kubectl rollout history deployment/my-deploy
+# kubectl rollout status deployment/my-deploy
+# kubectl set image deploymeent/my-deploy httpd=nginx --record
+
+вернуться:
+# kubectl rollout undo deployment/my-deploy
+# kubectl rollout undo deployment/my-deploy --to-revision=1
+
+передеплоить:
+# kubectl rollout restart deployment/my-deploy
+
 #----------------------- services -------------------#
