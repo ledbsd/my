@@ -103,4 +103,6 @@ rolled out:
 
 управление ingress:
 
-# kubectl  delete ns projectcontour
+# minikube addons enable ingress
+# kubectl get pods -n ingress-nginx
+# kubectl delete ns ingress-nginx
