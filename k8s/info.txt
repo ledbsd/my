@@ -93,3 +93,10 @@ rolled out:
 
 # kubectl apply -f service-my-web.yaml
 # kubectl delete -f service-my-web.yaml
+
+#----------------------- ingress -------------------#
+
+инфо по ingress:
+
+# kubectl get ingress
+# kubectl describe ingress
