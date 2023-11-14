@@ -100,3 +100,7 @@ rolled out:
 
 # kubectl get ingress
 # kubectl describe ingress
+
+управление ingress:
+
+# kubectl  delete ns projectcontour
