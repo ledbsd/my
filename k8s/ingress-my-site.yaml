@@ -11,21 +11,10 @@ spec:
         - backend:
           serviceName: main
           servicePort: 80
-  - host: web1.my-site.com
+  - host: www.my-site.com
     http:
       paths:
-        - backend:
-          serviceName: web1
-          servicePort: 80
-  - host: web2.my-site.com
-    http:
-      paths:
-        - backend:
-          serviceName: web2
-          servicePort: 80
-  - host: tomcat.my-site.com
-    http:
-      paths:
-        - backend:
-          serviceName: tomcat
-          servicePort: 8080
+        - path: "/page1"
+          backend: 
+            serviceName: tomcat
+            servicePort: 8080
