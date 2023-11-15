@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 lind: Deployment
 metadata:
-  name: my-web-deployment
+  name: {{ .Release.Name}}-deployment
   labels:
-    app: my-k8s-deployment
+    app: {{ .Release.Name}}-deployment
 spec:
-  replicas: 3
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      project: my-project
+      project: {{ .Release.Name}}-project
   template:
     metadata:
       labels:
-        project: my-project
+        project: {{ .Release.Name}}-project
     spec:
       containers:
-        - name: web
-          image: nginx
+        - name: {{ .Release.Name}}-web
+          image: {{ .Values.container.image }}
           ports:
             - containerPort: 80
