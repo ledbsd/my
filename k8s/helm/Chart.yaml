@@ -1,1 +1,17 @@
-#
+apiVersion: v2
+name: App-HelmChart
+describtion: My Helm Chart for k8s
+type: application
+version: 0.1.0
+appVersion: "1.2.3"
+
+keywords:
+  - apache
+  - nginx
+  - httpd
+  - https
+
+maintainers:
+  - name: Led
+    email: q@q.q
+    url: google.com
