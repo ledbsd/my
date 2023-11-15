@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-web-replicas
+  labels:
+    app: my-k8s-application
+    env: prod
+    owner: led
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      project: project2
+  template:
+    metadata:
+      labels:
+        project: project2
+    spec:
+      containers:
+        - name: project2-web
+          image: httpd
+          ports:
+            - containerPort: 80
