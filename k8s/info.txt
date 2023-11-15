@@ -106,3 +106,31 @@ rolled out:
 # minikube addons enable ingress
 # kubectl get pods -n ingress-nginx
 # kubectl delete ns ingress-nginx
+
+#----------------------- helm ---------------------#
+
+инфо по ingress:
+
+# helm list 
+
+развертывание chart:
+
+# helm install app Chart/
+# helm install app1 Chart/ --set container.image=httpd --set replicaCount=3
+# helm upgrade app1 Chart/ --set container.image=httpd --set replicaCount=4
+# helm install app2 Chart/ -f prod.values
+
+работа с package:
+
+# helm package Chart/
+# helm install app4 Chart.tgz
+
+работа с repo:
+
+# helm search hub apache
+# helm search repo
+# helm repo add bitnami https://charts.bitnami.com/bitnami
+
+удаление:
+
+# helm delete app
