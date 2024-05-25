@@ -1,0 +1,43 @@
+#------------------- python example --------------#
+
+import requests
+headers = {"X-Vault-Token": "xxx"}
+
+r = requests.get('http://127.0.0.1:8200/v1/secret/digitalocean-api-key', headers=headers)
+json_response = r.json()
+# {u'lease_id': u'', u'warnings': None, u'auth': None, u'lease_duration': 2592000,
+# u'data': {u'value': u'7175b4cfff396de2c136d052bfac6b0d4'}, u'renewable': False}
+
+if r.status_code == 200:
+    api_key = json_response.get('data',{}).get('value', "")
+
+или как функция:
+
+def vault_get_secret(value):
+ request ....
+ return value
+
+# settings.py
+API_KEY = vault_get_secret('digitalocean-api-key')
+
+#----------------- terraform example -------------#
+
+export VAULT_ADDR=http://127.0.0.1:8200
+export VAULT_TOKEN=xxx
+
+provider "vault" {
+    # address defaults to $VAULT_ADDR
+    # token defaults to $VAULT_TOKEN
+}
+
+data "vault_generic_secret" "aws_creds" {
+    path = "secret/aws"
+}
+
+provider "aws" {
+  region  = data.vault_generic_secret.aws_creds.data["region"]
+    access_key = data.vault_generic_secret.aws_creds.data["aws_access_key_id"]
+    secret_key = data.vault_generic_secret.aws_creds.data["aws_secret_access_key"]
+}
+
+#-----------------------  --------------------#
