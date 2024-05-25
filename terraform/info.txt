@@ -36,6 +36,72 @@ apply:
     - plan
   when: manual
 
-#------------------- pipeline --------------#
-#------------------- pipeline --------------#
-#------------------- pipeline --------------#
+#--------------- remote state --------------#
+
+data "terraform_remote_state" "db" {
+  backend = "s3"
+
+  config = {
+    bucket = "(YOUR_BUCKET_NAME)"
+    key    = "stage/data-stores/mysql/terraform.tfstate"
+    region = "us-east-2"
+  }
+}
+
+...
+data.terraform_remote_state.<NAME>.outputs.<ATTRIBUTE>
+
+#---------------- templatefile -------------#
+user-data.sh:
+
+#!/bin/bash
+cat > index.html <<EOF
+<h1>Hello, World</h1>
+<p>DB address: ${db_address}</p>
+<p>DB port: ${db_port}</p>
+EOF
+nohup busybox httpd -f -p ${server_port} &
+
+main.tf:
+
+resource "aws_launch_configuration" "example" {
+  image_id        = "ami-0fb653ca2d3203ac1"
+  instance_type   = "t2.micro"
+  security_groups = [aws_security_group.instance.id]
+
+  # Render the User Data script as a template
+  user_data = templatefile("user-data.sh", {
+    server_port = var.server_port
+    db_address  = data.terraform_remote_state.db.outputs.address
+    db_port     = data.terraform_remote_state.db.outputs.port
+  })
+
+  # Required when using a launch configuration with an ASG.
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+#----------------- modules --------------#
+
+Providers should be configured only in root modules and not in reusable modules.
+Whenever you add a module to your Terraform configurations or modify the source parameter of a module, you need to run the init command before you run plan or apply.
+
+File paths:
+
+path.module: Returns the filesystem path of the module where the expression is defined.
+path.root: Returns the filesystem path of the root module.
+path.cwd: Returns the filesystem path of the current working directory. In normal use of Terraform, this is the same as path.root, but some advanced uses of Terraform run it from a directory other than the root module directory, causing these paths to be different.
+
+Example:
+
+user_data = templatefile("${path.module}/user-data.sh", {
+  server_port = var.server_port
+  db_address  = data.terraform_remote_state.db.outputs.address
+  db_port     = data.terraform_remote_state.db.outputs.port
+})
+
+#----------------- modules --------------#
+#----------------- modules --------------#
+#----------------- modules --------------#
+
