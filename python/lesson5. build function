@@ -1,0 +1,15 @@
+abs():
+
+bool():
+  - для чисел: 0 - False, иначе True
+  - для строк, список, кортеж, словарь: пустая - False, иначе True
+
+len()
+min()
+max()
+sum()
+range()
+  
+import sys
+age = int(sys.stdin.readline())
+pass
