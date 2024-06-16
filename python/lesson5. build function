@@ -13,3 +13,12 @@ range()
 import sys
 age = int(sys.stdin.readline())
 pass
+
+работа с файлами:
+test_file = open('c:\\Users\\<ваше имя пользователя>\\test.txt')
+text = test_file.read()
+print(text)
+
+test_file = open('c:\\myfile.txt', 'w')
+test_file.write('Что это – зеленое и крякает? Жабокряк!')
+test_file.close()
