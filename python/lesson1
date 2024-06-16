@@ -1,0 +1,36 @@
+list(): 
+  - []
+  - how to create
+  - number, string and list
+  - call element[x], call element[2:4]
+  - a, b, c = list
+  - change element
+  - .append
+  - .remove OR del element[x]
+  - list + list
+  - list * number
+  - len()
+  - sorted(list) OR list.sort()
+  - min(), max()
+
+tuple(): 
+  - ()
+  - how to create
+  - number, string and list
+  - call element[x]
+  - no change
+  - len()
+  - sorted(tuple) - но через создание нового 
+  - min(), max()
+
+tuple → list: mylist = list(mytuple)
+list → tuple: mytuple = tuple(mylist)
+
+dict():
+  - {'key' : 'value'}
+  - key - неизменяемые (строки, числа, кортежи), value - любые
+  - не сортирован
+  - call element['key']
+  - dict['key'] = 'value'
+  - del dict['key']
+  - .keys() , .values()
