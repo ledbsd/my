@@ -1,0 +1,7 @@
+import turtle
+
+t = turtle.Pen()
+t.forward() && t.backward()
+t.left()    && t.right()
+t.reset()   && t.clear()
+t.up()      && t.down()
