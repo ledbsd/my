@@ -1,0 +1,16 @@
+import keyword
+print(keyword.iskeyword('if'))
+print(keyword.iskeyword('ozwald'))
+print(keyword.kwlist)
+
+import random
+print(random.randint(1, 100))
+print(random.choice(desserts))
+print(random.shuffle(desserts))
+
+import sys
+
+import time
+
+import pickle
+
