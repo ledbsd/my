@@ -9,8 +9,32 @@ print(random.choice(desserts))
 print(random.shuffle(desserts))
 
 import sys
+v = sys.stdin.readline()
+print(v)
+  Одно из различий между input и readline состоит в том, что для readline можно задать ограничение количества символов
+
+import sys
+sys.stdout.write("У какого слона нет хобота? У шахматного!")
+   возвращает количество напечатанных символов, поэтому после сообщения и стоит число 40.
 
 import time
+print(time.time())
+print(time.asctime())
+print(time.localtime())
+
+time.sleep(1)
+
+t1 = time.time()
+for x in range(0, max):
+  print(x)
+t2 = time.time()
+print('Прошло %s секунд' % (t2-t1))
 
 import pickle
+save_file = open('save.dat', 'wb')
+pickle.dump(game_data, save_file)
+save_file.close()
 
+load_file = open('save.dat', 'rb')
+loaded_game_data = pickle.load(load_file)
+load_file.close()
