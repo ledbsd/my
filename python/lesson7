@@ -5,6 +5,7 @@ print(keyword.kwlist)
 
 import random
 print(random.randint(1, 100))
+print(random.randrange(100)) - от 0 до 100
 print(random.choice(desserts))
 print(random.shuffle(desserts))
 
