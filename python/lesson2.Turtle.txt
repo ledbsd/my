@@ -5,3 +5,18 @@ t.forward() && t.backward()
 t.left()    && t.right()
 t.reset()   && t.clear()
 t.up()      && t.down()
+t.pencolor('red')
+collors = ['yellow', 'blue', 'green', 'red']
+
+import turtle
+
+t = turtle.Pen()
+for x in range(100):
+  t.forward(x)
+  t.left(90)
+
+-> t.left(91)
+-> t.circle(x)
+-> t.pencolor(colors[x%4])
+before for add turtle.bgcolor('black')
+
