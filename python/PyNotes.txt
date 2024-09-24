@@ -1,0 +1,94 @@
+циклы:
+	- если список пустой, не выпадать, при этом продолжить работу, если не пустой:
+		for task in task or []:
+		...
+
+строки:
+	- собирает лист в строку через разделитель
+		",".join(list)
+
+os path:
+	from pathlib import Path
+
+	root_path = Path(__file__).resolve().parents[0]
+	print(root_path)
+	config_path = root_path/'config'
+	print(config_path)
+
+регулярки:
+	* сколько угодно вхождений
+	+ одно и более вхождений
+	? ноль или одно вхождение 
+
+декораторы:
+	- пример бенчмарка:
+		def benchmark(func):
+		import time
+		
+		def wrapper():
+			start = time.time()
+			func()
+			end = time.time()
+			print('[*] Время выполнения: {} секунд.'.format(end-start))
+		return wrapper
+
+		@benchmark
+		def fetch_webpage():
+			import requests
+			webpage = requests.get('https://google.com')
+
+		fetch_webpage()
+	
+
+class:
+	- константы лучше хранить в Enum. а чтобы вызывать сразу их значения, переопределить:
+		
+		class ConstantType(Enum):
+		def __get__(self, *args):
+			return self.value
+		
+		class IntensityType(ConstantType):
+			LOW = 'Low'
+			MEDIUM = 'Medium'
+			HIGH = 'High'
+			EXTREME = 'Extreme'
+		...
+		if intensity == IntensityType.EXTREME:
+		...
+	
+	- декораторы:
+		@classmethod
+		@staticmethod
+		
+		getter :
+		@property
+		def name(self):
+			return self.__name
+	
+		@name.setter
+		def name(self, new_value):
+			if len(new_value) <= 0 or not isinstance(new_value, str):
+				raise ValueError("Имя должно быть непустой строкой")
+			self.__name = new_value
+			
+	- переопределение:
+		class SlurmikDev(Slurmik):
+		def __init__(self, name: str, profession: str, experience: int):
+			super().__init__(name, profession, experience)
+			
+	- наследование без аргумента:
+		1. образовать родительский без аргумента, потомка с аргументом
+		2. сделать родительский более гибким - например назначить аргументу параметр по умолчанию либо ""
+		3. либо отказаться от переменных и сделать словарь атрибутов в главном родителе без рамок названий и пр. Затем при наследовании в нём будут храниться все параметры
+		https://ru.stackoverflow.com/questions/897997/%D0%9D%D0%B0%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-%D0%B2-python-%D0%B1%D0%B5%D0%B7-%D0%B0%D1%80%D0%B3%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D0%B0
+
+None:
+	- команду return None в конце тела функции писать не нужно — это делается автоматически
+	- проверка на None (любые var проверятся на один и тот же None):
+		if var is None:
+	
+Ссылки:
+	- руководство по магическим методам: https://habr.com/ru/post/186608/
+	- python и строки https://docs.python.org/3.9/library/string.html#formatstrings
+	- python и теория множеств https://habr.com/ru/articles/516858/
+	- JSON schema https://json-schema.org/understanding-json-schema
