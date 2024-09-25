@@ -1,0 +1,102 @@
+Ключи запуска Prometheus
+
+Далее приведен список наиболее востребованных ключей Prometheus:
+
+--config.file
+
+Default: "prometheus.yml"
+
+Путь к конфигурационному файлу Prometheus. Если путь не полный, то поиск производится по каталогу, из которого запущен Prometheus.
+
+--web.listen-address
+
+Default: "0.0.0.0:9090"
+
+Адрес и порт, по которому доступны UI и метрики Prometheus.
+
+--web.read-timeout
+
+Default: 5m
+
+Максимальное продолжительность до истечения времени чтения запроса и закрытия простаивающих (idle) соединений.
+
+--storage.tsdb.path
+
+Default: "data/"
+
+Путь к каталогу для сохранения метрик.
+
+--storage.tsdb.retention.time
+
+Default: -
+
+Как долго хранить данные метрик. Время хранения метрик, по умолчанию: 15 дней.
+
+--storage.tsdb.retention.size
+
+Default: 0B
+
+[Экспериментальная] Максимальный размер, отведенный под хранение метрик. Допускаются следующие единицы: KB, MB, GB, TB, PB. Первыми удаляются наиболее старые данные.
+
+--storage.remote.flush-deadline
+
+Default: 1m
+
+Как долго ожидать окончания процесса сохранения данных при restart и reload.
+
+--rules.alert.for-outage-tolerance
+
+Default: 1h
+
+Максимальное время сопротивления к отключению Prometheus для восстановления алерта в состояние "for".
+
+--rules.alert.for-grace-period
+
+Default: 10m
+
+Минимальное время восстановления состояния.
+
+--rules.alert.resend-delay
+
+Default: 1m
+
+Минимальное время ожидания до отправки сообщения в Alertmanager.
+
+--alertmanager.notification-queue-capacity
+
+Default: 10000
+
+Максимальное число сообщений, ожидающих отправки в Alertmanager.
+
+--alertmanager.timeout
+
+Default: 10s
+
+Timeout для отправки сообщений в Alertmanager.
+
+--query.timeout
+
+Default: 2m
+
+Максимальное время для выполнения запроса, после этого запрос будет сброшен.
+
+--query.max-concurrency
+
+Default: 20
+
+Максимальное число параллельно выполняющихся запросов.
+
+--log.level
+
+Default: info
+
+Данный ключ устанавливает уровень логирования. Возможные уровни логирования: debug, info, warn, error.
+
+--log.format
+
+Default: logfmt
+
+Данный ключ устанавливает формат логов. Доступные форматы: logfmt и json.
+Полный список ключей можно просмотреть с помощью команды help:
+
+prometheus --help

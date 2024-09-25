@@ -1,0 +1,25 @@
+Настройка Prometheus
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и выполняются с root привилегиями.
+
+Настройка scraping c PushGateway не отличается от scraping с обычных exporters.
+
+1. Добавляем настройки в основной конфигурационный файл Prometheus:
+
+cat <<EOF >> /etc/prometheus/prometheus.yml  
+  - job_name: pushgateway
+    honor_labels: true
+    static_configs:
+    - targets:
+      - localhost:9091
+EOF
+
+2. Применяем настройки:
+
+systemctl reload prometheus.service
+
+3. Для проверки:
+
+Выполните запрос в UI Prometheus:
+
+slurm_io_edu_counter[1m]

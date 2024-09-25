@@ -1,0 +1,8 @@
+cd ~/git/taiga-docker/
+sudo ./launch-taiga.sh
+
+cd ~/git/pythonforops/5.Client_modules/final_practice_helpers/
+sudo docker-compose -f docker-compose.yaml up -d --build
+
+cd ~/git/pythonforops/6.Text_processing/final_practice_helpers/
+python3 monitoring_module.py &

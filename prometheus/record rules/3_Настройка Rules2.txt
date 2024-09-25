@@ -1,0 +1,53 @@
+Настройка Rules
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и выполняется с root привилегиями.
+
+1. Сохраняем правила в файл: rules.yml
+
+cat <<EOF > /etc/prometheus/rules.yml
+groups:
+- name: slurm-edu-example-node-exporter-rules
+  rules:
+  # The count of CPUs per node, useful for getting CPU time as a percent of total.
+  - record: instance:node_cpus:count
+    expr: count(node_cpu_seconds_total{mode="idle"}) without (cpu,mode)
+
+  # CPU in use by CPU.
+  - record: instance_cpu:node_cpu_seconds_not_idle:rate5m
+    expr: sum(rate(node_cpu_seconds_total{mode!="idle"}[5m])) without (mode)
+
+  # CPU in use by mode.
+  - record: instance_mode:node_cpu_seconds:rate5m
+    expr: sum(rate(node_cpu_seconds_total[5m])) without (cpu)
+
+  # CPU in use ratio.
+  - record: instance:node_cpu_utilization:ratio
+    expr: sum(instance_mode:node_cpu_seconds:rate5m{mode!="idle"}) without (mode) / instance:node_cpus:count
+EOF
+
+2. Проверяем правила.
+
+Для проверки правил также используется утилита promtool, отличие только в ключах запуска.
+
+promtool check rules /etc/prometheus/rules.yml 
+
+3. Добавляем данные о Rules в основной конфигурационный файл Prometheus.
+
+Открываем на редактирование файл: /etc/prometheus/prometheus.yml и после rule_files добавляем "- rules.yml". В результате у вас должно получиться:
+
+rule_files:
+  - rules.yml
+
+4. Проверяем корректность внесенных изменений:
+
+promtool check config /etc/prometheus/prometheus.yml 
+
+5. Выполните reload для Prometheus, чтобы применить новые настройки:
+
+systemctl reload prometheus.service
+
+NB! Для применения изменений в prometheus.yml достаточно выполнить reload для службы. Этот способ предпочтительней, так как в случае ошибки в конфигурационном файле просто не применятся изменения. Если же выполнить restart, то из-за ошибки весь Prometheus станет недоступен до устранения этой самой ошибки.
+
+6. Проверяем, что правила появились.
+
+Открываем UI Prometheus, раздел rules. Для этого открываем в браузере: http://<адрес сервера monitoring>:9090/rules

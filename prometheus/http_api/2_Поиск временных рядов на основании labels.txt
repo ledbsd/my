@@ -1,0 +1,134 @@
+Поиск временных рядов на основании labels
+
+Ednpoint: /api/v1/series
+
+Method: GET | POST
+
+Параметры запроса:
+
+    match[] – задает список меток, соответствие которым учитывается при поиске. Необходимо задать хотя бы одно условие.
+    start – временная метка начала вектора.
+    end – временная метка окончания вектора.
+
+Пример. В результате выполнения запроса мы получим данные по всем временным рядам, которые имеют имя node_disk_write_time_seconds_total и label device со значением sda:
+
+curl -XPOST -H 'Content-Type: application/x-www-form-urlencoded' -d 'match[]=node_disk_write_time_seconds_total{device="sda"}'  http://localhost:9090/api/v1/series
+
+Ответ будет примерно таким:
+
+{ 
+   "status":"success",
+   "data":[ 
+      { 
+         "__name__":"node_disk_write_time_seconds_total",
+         "device":"sda",
+         "instance":"192.168.0.12:9100",
+         "job":"node_exporter"
+      },
+      { 
+         "__name__":"node_disk_write_time_seconds_total",
+         "device":"sda",
+         "instance":"192.168.0.7:9100",
+         "job":"node_exporter"
+      },
+      { 
+         "__name__":"node_disk_write_time_seconds_total",
+         "device":"sda",
+         "instance":"localhost:9100",
+         "job":"prometheus"
+      }
+   ]
+}
+
+Получение списка меток
+
+Endpoint: /api/v1/labels
+
+Method: GET | POST
+
+Параметры запроса: -
+
+Данный запрос позволяет получить список всех labels.
+
+Пример:
+
+curl 'http://localhost:9090/api/v1/labels'
+
+Ответ будет примерно таким:
+
+{ 
+   "status":"success",
+   "data":[ 
+      "__name__",
+      "address",
+      "alertmanager",
+      "alertname",
+      "alertstate",
+      "branch",
+      "broadcast",
+      "call",
+      "code",
+      "collector",
+      "config",
+      "cpu",
+      "device",
+      "dialer_name",
+      "domainname",
+      "endpoint",
+      "event",
+      "fstype",
+      "goversion",
+      "handler",
+      "instance",
+      "interval",
+      "job",
+      "le",
+      "listener_name",
+      "machine",
+      "mode",
+      "mountpoint",
+      "name",
+      "nodename",
+      "operstate",
+      "quantile",
+      "reason",
+      "release",
+      "revision",
+      "role",
+      "rule_group",
+      "scrape_job",
+      "severity",
+      "slice",
+      "sysname",
+      "version"
+   ]
+}
+
+Запрос значений для label
+
+Endpoint: /api/v1/labels
+
+Method: GET
+
+Параметры запроса: -
+
+Данный endpoint позволяет получить все значения для определенного label. Синтаксис запроса: /api/v1/labels/<label name>/values. Где <label name> это имя label, для которого необходимо получить значения.
+
+Пример:
+
+curl 'http://localhost:9090/api/v1/label/instance/values'
+
+Ответ будет примерно таким:
+
+{ 
+   "status":"success",
+   "data":[ 
+      "129.168.0.7:9090",
+      "192.168.0.12:9090",
+      "192.168.0.12:9100",
+      "192.168.0.7:9090",
+      "192.168.0.7:9100",
+      "localhost:9090",
+      "localhost:9100"
+   ]
+}

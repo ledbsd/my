@@ -1,0 +1,36 @@
+Отправка данных в PushGateway
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и выполняются с root привилегиями.
+
+Чтобы ознакомиться с работой PushGateway на практике, отправим в него 2 метрики. Первая метрика типа counter c label type, вторая – типа gauge.
+
+1. Отправка данных в PushGateway (введите номер студента в команде):
+
+cat <<EOF | curl --data-binary @- http://127.0.0.1:9091/metrics/job/slurm_io_test_job/instance/monitoring.s<ваш номер студента>.slurm.io
+# TYPE slurm_io_edu_counter counter
+slurm_io_edu_counter{type="counter"} 42
+# TYPE slurm_io_gauge gauge
+slurm_io_gauge 2398.283
+EOF
+
+2. Проверим результат:
+
+curl -L http://localhost:9091/metrics/
+
+Ответ должен быть примерно таким:
+
+push_failure_time_seconds{instance="monitoring.s00000.slurm.io",job="slurm_io_test_job"} 0
+push_time_seconds{instance="monitoring.s00000.slurm.io",job="slurm_io_test_job"} 1.5736548226639028e+09
+# TYPE slurm_io_edu_counter counter
+slurm_io_edu_counter{instance="monitoring.s00000.slurm.io",job="slurm_io_test_job",type="counter"} 42
+# TYPE slurm_io_gauge gauge
+slurm_io_gauge{instance="monitoring.s00000.slurm.io",job="slurm_io_test_job"} 2398.283
+
+Обратите внимание: в ответе присутствуют push_failure_time_seconds равный 0. Это говорит о том, что еще не было неудачных отправок данных.
+
+Также присутствует переменная push_time_seconds, значение которой говорит о времени последней удачной отправки данных.
+
+Также группировка произведена только по labels, которые передавались в URL. label type для slurm_io_edu_counter не учитывается.
+UI PushGateway
+
+UI доступен по порту 9091. Интерфейс у него очень простой. В нем можно посмотреть список групп, значение для метрик для каждой группы. Время последней удачной и неудачной отправки данных. Можно также удалить группу.

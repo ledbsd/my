@@ -1,0 +1,30 @@
+Настройка service discovery с использованием api openstack
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и выполняются с root привилегиями.
+
+1. Добавляем настройку в основной конфиг Prometheus.
+
+Перед добавлением нужно подставить значения <user name>, <Project name>, <Password>, <Region>. Значения можете посмотреть в личном кабинете.
+
+cat <<EOF >> /etc/prometheus/prometheus.yml
+  - job_name: 'openstack'
+    openstack_sd_configs:
+    - identity_endpoint: https://api.selvpc.ru/identity/v3
+      port: 9100
+      domain_name: '82113'
+      username: '<user name>' # s00000
+      project_name: '<Project name>' # project-s00000
+      password: '<Password>' # совпадает с ssh паролем
+      role: 'instance'
+      region: '<Region>' # ru-3
+      refresh_interval: 30s
+
+EOF
+
+С помощью директивы port задается порт, по которому будет производиться scraping. Все остальные директивы относятся к подключению Openstack API.
+
+2. Выполните reload для Prometheus, чтобы применить новые настройки:
+
+systemctl reload prometheus.service
+
+3. Если Вы все верно сделали, то в веб-интерфейсе должны появиться новые хосты.

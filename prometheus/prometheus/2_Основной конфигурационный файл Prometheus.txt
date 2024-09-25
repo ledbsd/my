@@ -1,0 +1,61 @@
+Основной конфигурационный файл Prometheus
+
+1. Путь к конфигурационному файлу задается через ключ: --config.file при запуске prometheus.
+
+2. Формат конфигурационного файла: yaml.
+
+3. В конфигурационном файле не допускаются символы табуляции, только пробелы.
+
+4. Общий вид конфигурационного файла:
+
+global:
+  # Как часто собирать данные, значение по умолчанию.
+  [ scrape_interval: <duration> | default = 1m ]
+
+  # Значение тайм-аут для процесса сбора данных, значение по умолчанию.
+  [ scrape_timeout: <duration> | default = 10s ]
+
+  # Как часто перечитывается список правил.
+  [ evaluation_interval: <duration> | default = 1m ]
+
+  # Метки, добавляем по умолчанию. 
+  external_labels:
+    [ <labelname>: <labelvalue> ... ]
+
+# Файл со списком правил
+rule_files:
+  [ - <filepath_glob> ... ]
+
+# Конфигурация для сбора данных.
+scrape_configs:
+  [ - <scrape_config> ... ]
+
+#Настройка для взаимодействия с Alert Manager.
+alerting:
+  alert_relabel_configs:
+    [ - <relabel_config> ... ]
+  alertmanagers:
+    [ - <alertmanager_config> ... ]
+
+# Настройки связанные, с функционалом remote write.
+remote_write:
+  [ - <remote_write> ... ]
+
+# Настройки связанные, с функционалом remote read.
+remote_read:
+  [ - <remote_read> ... ]
+
+NB! Наиболее востребованные настройки, их определенно стоит запомнить:
+
+scrape_interval - как часто prometheus будет опрашивать источники данных
+scrape_configs -  список источников данных
+
+Разделы:
+
+- rule_files
+- scrape_configs
+- alerting
+- remote_write
+- remote_read
+
+Будут рассмотрены в соответствующих разделах нашего курса.
