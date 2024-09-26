@@ -1,3 +1,4 @@
+"""Working with SSH-server"""
 from os import getenv
 import paramiko
 
@@ -13,6 +14,7 @@ class SSHServer():
 
     @property
     def cred_params(self):
+        """Getting credentials as params"""
         return {
             'hostname': self.__hostname,
             'port': self.__port,
@@ -30,7 +32,7 @@ class SSHServer():
             ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
             try:
                 ssh_client.connect(**self.cred_params)
-                _, stdout, stderr = ssh_client.exec_command(self.generator_command)
+                _, _, stderr = ssh_client.exec_command(self.generator_command)
                 if stderr.read():
                     print(f'Error to start metric generator: {stderr.read()}')
                 else:

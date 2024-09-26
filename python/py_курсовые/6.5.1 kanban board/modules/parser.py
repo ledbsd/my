@@ -1,18 +1,22 @@
+"""Parsing the metric data"""
 from enum import Enum
 
 
 class ConstantType(Enum):
+    """Class Enum with value call override"""
     def __get__(self, *args):
         return self.value
 
 
 class UsageType(ConstantType):
+    """List of constants for the usage type characteristic"""
     STABLE = 'Stable'
     JUMP = 'Jumps'
     DECREASE = 'Decrease'
 
 
 class IntensivityType(ConstantType):
+    """List of constants for the intensity type characteristic"""
     LOW = 'Low'
     MEDIUM = 'Medium'
     HIGH = 'High'
@@ -20,6 +24,7 @@ class IntensivityType(ConstantType):
 
 
 class DecisionType(ConstantType):
+    """List of constants for the decision characteristic"""
     DELETE = 'delete resource'
     EXTEND = 'extend resource'
     NORMAL = 'normal using'
@@ -56,10 +61,10 @@ def check_usage_type(mean: float, median: float):
     load_pattern = (mean - median) / mean * 100
     if load_pattern < -25:
         return UsageType.DECREASE
-    elif load_pattern > 25:
+    if load_pattern > 25:
         return UsageType.JUMP
-    else:
-        return UsageType.STABLE
+
+    return UsageType.STABLE
 
 
 def check_intensivity(median: float):
@@ -70,12 +75,12 @@ def check_intensivity(median: float):
     """
     if 0 < median <= 30:
         return IntensivityType.LOW
-    elif 30 < median <= 60:
+    if 30 < median <= 60:
         return IntensivityType.MEDIUM
-    elif 60 < median <= 90:
+    if 60 < median <= 90:
         return IntensivityType.HIGH
-    else:
-        return IntensivityType.EXTREME
+
+    return IntensivityType.EXTREME
 
 
 def check_decision(usage_type: str, intensivity: str):
@@ -87,14 +92,14 @@ def check_decision(usage_type: str, intensivity: str):
     """
     if intensivity == IntensivityType.LOW:
         return DecisionType.DELETE
-    elif intensivity == IntensivityType.MEDIUM and usage_type == UsageType.DECREASE:
+    if intensivity == IntensivityType.MEDIUM and usage_type == UsageType.DECREASE:
         return DecisionType.DELETE
-    elif intensivity == IntensivityType.HIGH and usage_type == UsageType.JUMP:
+    if intensivity == IntensivityType.HIGH and usage_type == UsageType.JUMP:
         return DecisionType.EXTEND
-    elif intensivity == IntensivityType.EXTREME:
+    if intensivity == IntensivityType.EXTREME:
         return DecisionType.EXTEND
-    else:
-        return DecisionType.NORMAL
+
+    return DecisionType.NORMAL
 
 
 def analyze_metrics(metrics: dict):
@@ -125,8 +130,11 @@ def analyze_metrics(metrics: dict):
 
         decision = check_decision(usage_type, intensivity)
 
-        metrics_dictionary[metric_name] = {'mean': mean, 'mediana': median, 'last_date': last_date,
-                                           'usage_type': usage_type, 'intensivity': intensivity, 'decision': decision}
+        metrics_dictionary[metric_name] = {
+            'mean': mean, 'mediana': median,
+            'last_date': last_date, 'usage_type': usage_type,
+            'intensivity': intensivity, 'decision': decision
+        }
 
     return metrics_dictionary
 

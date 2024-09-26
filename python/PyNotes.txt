@@ -1,3 +1,6 @@
+линтеры:
+	pylint.exe --ignore-paths=.\6.5\.venv .\6.5\
+	
 циклы:
 	- если список пустой, не выпадать, при этом продолжить работу, если не пустой:
 		for task in task or []:
@@ -72,7 +75,7 @@ class:
 			self.__name = new_value
 			
 	- переопределение:
-		class SlurmikDev(Slurmik):
+		class WorkerDev(Worker):
 		def __init__(self, name: str, profession: str, experience: int):
 			super().__init__(name, profession, experience)
 			

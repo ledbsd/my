@@ -1,3 +1,4 @@
+"""Working with database server"""
 from os import getenv
 import psycopg2
 
@@ -13,6 +14,7 @@ class DBServer():
 
     @property
     def cred_params(self):
+        """Getting credentials as params"""
         return {
             'dbname': self.__dbname,
             'port': self.__port,
