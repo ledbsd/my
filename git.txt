@@ -6,6 +6,8 @@
 # git push origin
 # git log -1 -p
 # git log --pretty=oneline
+список изменений в последнем коммите
+# git show HEAD
 
 #----------------------- remote repo  ----------#
 
@@ -35,6 +37,32 @@
 удалить ветку с remote
 # git push origin --delete <name>
 
+скачать конкретную ветку
+# git fetch && git branch -r
+# git fetch origin develop
+
+если нужно дать новое имя
+# git fetch origin develop:myOwnDevelop
+
+#-------------------- конфликты ---------------#
+
+слияния веток
+# git merge develop
+# git status
+# vi filename
+# git add filename
+# git commit
+
+слияние репо
+# git pull --rebase
+# git status
+# vi filename
+# git add filename
+# git rebase --continue
+
+прервать Rebase
+# git rebase --abort
+
 #----------------------- отмены  ---------------#
 
 откатить изменения на последний comit
@@ -46,17 +74,26 @@
 временно перейти на старую версию
 # git checkout <hash>
 
-изменить последний коммит
+перейти на коммит назад (можно ^^ и т.д.)
+# git checkout HEAD^
+
+отменить git add
+# git reset filename
+
+откатить коммиты
+# git reset HEAD@{n}
+или
+# git reset <hash>
+изменения остаются, поэтому правим сами
+# git checkout filename
+
+изменить последний коммит до пуша в remote
 # git commin --amend 
 
-вернуться на <n> commit (удалить <n> commit)
-# git reset --hard HEAD~<n>
-
-удалить из истории коммиты, не меняя данные
-# git reset --soft HEAD~<n>
-
-перезаписать remote:
-# git push origin main --force
+если уже запушили в remote
+# git revert HEAD
+или 
+# git revert <hash>
 
 #----------------------- тэги  -----------------#
 
