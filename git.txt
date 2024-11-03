@@ -40,6 +40,9 @@
 откатить изменения на последний comit
 # git checkout -- file1.txt
 
+откатить все файлы
+# git checkout . 
+
 временно перейти на старую версию
 # git checkout <hash>
 
