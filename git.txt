@@ -1,5 +1,9 @@
 #----------------------- git -------------------#
 
+# git config --global user.name ""
+# git config --global user.email ""
+# git config --global core.editor nano
+# git config --list --global
 # git init 
 # git add .
 # git commit -m ""
