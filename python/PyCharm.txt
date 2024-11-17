@@ -10,3 +10,11 @@ hotkeys:
 	
 	Ctrl+Alt+T - выделенный блок поместить в блок if, try и т.п.
 	
+
+pylint:
+	pip install pylint
+	Tools -> External Tools ->
+		name: pylint
+		program: c:\Program Files\Python312\Scripts\pylint.exe
+		arguments: $FilePath$
+		working directory: $ProjectFileDir$

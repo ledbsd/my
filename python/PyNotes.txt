@@ -147,6 +147,7 @@ None:
 	- python и теория множеств https://habr.com/ru/articles/516858/
 	- JSON schema https://json-schema.org/understanding-json-schema
 	- PyTest https://docs.pytest.org/en/6.2.x/index.html
+	- python и SQLite https://proglib.io/p/samouchitel-po-python-dlya-nachinayushchih-chast-22-osnovy-raboty-s-sqlite-2023-06-15
 
 
 Ролики:
