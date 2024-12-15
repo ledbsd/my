@@ -1,4 +1,24 @@
+dataclass
+	
+	- когда класс нужен только для хранения полей
+	- меньше кода для определения класса
+	- нужна поддержка значений по умолчанию
+	- если требуется readonly объекты
+	
+	from dataclasses import dataclass
+	@dataclass
+	class Metric:
+		name: str
+		description: str
+		labels: list
+		filepath: str
+		data: dict
+		registry: CollectorRegistry
+
+	
+	
 logging
+
 	- main:
 		from logging import getLogger, basicConfig, DEBUG, ERROR, FileHandler, StreamHandler
 		logger = getLogger()
@@ -22,8 +42,7 @@ logging
 
 паттерны:
 	- singleton: шаблон предоставления глобального доступа к состоянию. 
-	Нужен для одной точки доступа к ресурсам/данным 
-	и для того, чтобы ресурсоемкие задачи сделать 1 раз.
+	Нужен для одной точки доступа к ресурсам/данным и для того, чтобы ресурсоемкие задачи сделать 1 раз.
 
 
 линтеры:
