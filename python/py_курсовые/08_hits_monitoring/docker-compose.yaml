@@ -1,0 +1,36 @@
+version: '3'
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - "./config/prometheus.yml:/etc/prometheus/prometheus.yml"
+    networks:
+      - local
+    ports:
+      - 9090:9090
+  node-exporter:
+    image: prom/node-exporter
+    container_name: node-exporter
+    volumes:
+      - metrics:/var/lib/node_exporter
+    command:
+      - "--collector.textfile.directory=/var/lib/node_exporter"
+    networks:
+      - local
+    ports:
+      - 9100:9100
+  app-server:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    container_name: app-server
+    volumes:
+      - metrics:/var/lib/node_exporter
+    networks:
+      - local
+networks:
+  local:
+    driver: bridge
+volumes:
+  metrics:
