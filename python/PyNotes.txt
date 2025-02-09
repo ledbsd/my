@@ -141,16 +141,20 @@ class:
 		- getter/setter
 			__slots__ = (_name, _age) # но вообще-то он для уменьшения занимаемой памяти (превращает dict -> tuple)
 			
+			class Cat:
+			def __init__(self, name):
+				self.name = name (если есть setter иначе _name)
+			
 			@property
 			def name(self):
-				return self.__name
+				return self._name
 		
 			@name.setter
 			def name(self, new_value):
 				if len(new_value) <= 0 or not isinstance(new_value, str):
 					raise ValueError("Имя должно быть непустой строкой")
-				self.__name = new_value
-			! в __init__ надо вызывать уже setter, иначе проверку можно будет обойти при инициализации
+				self._name = new_value
+			! в __init__ над о вызывать уже setter, иначе проверку можно будет обойти при инициализации
 			
 			
 
