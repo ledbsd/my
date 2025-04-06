@@ -1,0 +1,9 @@
+[flake8]
+# E800:  Found commented out code
+# S101:  Use of assert detected
+# D103:  Missing docstring in public function
+# D100:  Missing docstring in public module
+# SC200: Possibly misspelt word
+extend-ignore = E800, S101, D103, D100
+exclude = .git,__pycache__,.venv
+max-line-length = 119

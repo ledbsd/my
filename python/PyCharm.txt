@@ -18,3 +18,11 @@ pylint:
 		program: c:\Program Files\Python312\Scripts\pylint.exe
 		arguments: $FilePath$
 		working directory: $ProjectFileDir$
+
+flake8:
+	Tools -> External Tools ->
+		name: Flake8
+		program: $PyInterpreterDirectory$/python
+		arguments: -m flake8
+		working directory: $ProjectFileDir$
+

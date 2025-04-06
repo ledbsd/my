@@ -1,0 +1,1 @@
+pip install darglint flake8 flake8-bandit flake8-bugbear flake8-builtins flake8-comprehensions flake8-docstrings flake8-eradicate flake8-isort flake8-pytest-style flake8-spellcheck pep8-naming
