@@ -1,0 +1,87 @@
+@pytest.mark.parametrize('x', [1,2,3])
+def test_simple(x):
+    assert x == 2
+	
+=======================================
+
+@pytestmark = [
+    pytest.mark.parametrize('x', [1,2,3])
+]
+
+def test_simple1(x):
+    assert x
+	
+def test_simple2(x):
+    assert x > 0
+
+=======================================
+
+@pytestmark.mark.parametrize(
+	'os', [
+		'ubuntu',
+		'centos',
+		'windows'
+	]
+)
+@pytestmark.mark.parametrize(
+	'arch', [
+		'x86,
+		'ARM',
+		'PowerPC'
+	]
+)
+def test_simple(os, arch):
+	server = prepare(os, arch)
+	assert server.exec() == 'Hello world'
+
+=======================================
+
+@pytestmark.mark.parametrize(
+	('os', 'arch'), [
+		('ubuntu','x86'),
+		('ubuntu','ARM'),
+		('ubuntu','PowerPC'),
+		('centos','x86'),
+		('centos','ARM'),
+		('centos','PowerPC'),
+		('windows', 'ARM')
+	],
+	ids = lambda x: x.split('-')[0]
+)
+def test_simple(os, arch):
+	server = prepare(os, arch)
+	assert server.exec() == 'Hello world'
+	
+=======================================
+
+@pytest.fixture(
+	params=[('ubuntu-20.04','x86')], ids=['ubuntu-x86']
+)
+def server(request):
+	return prepare(request.params)
+	
+---
+def test_simple(server):
+	assert server.exec() == 'Hello world'
+
+=======================================
+import requests_mock
+import requests
+
+with requests_mock.Mocker() as mock:
+	mock.get(
+		url="test.ru",
+		json={"id": 123, "name": "Alex"},
+		status=201
+	)
+	response = requests.get("test.ru")
+	print(response.status_code)
+
+=======================================
+=======================================
+=======================================
+=======================================
+=======================================
+=======================================
+=======================================
+=======================================
