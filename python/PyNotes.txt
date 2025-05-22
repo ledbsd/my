@@ -1,3 +1,11 @@
+set
+	collected_account_ids = set()
+	for arn in arns:
+        matched = re.match(ARN_REGEX, arn)
+		if matched is not None:
+            account_id = matched.groupdict()["account_id"]
+            collected_account_ids.add(account_id)
+
 context manager
 
 	 import contextlib
@@ -24,26 +32,6 @@ context manager
 	def offline_backup():
 		run("pg_dump database")
 
-
-dataclass
-	
-	- когда класс нужен только для хранения полей
-	- меньше кода для определения класса
-	- нужна поддержка значений по умолчанию
-	- если требуется readonly объекты
-	
-	from dataclasses import dataclass
-	@dataclass
-	class Metric:
-		name: str
-		description: str
-		labels: list
-		filepath: str
-		data: dict
-		registry: CollectorRegistry
-
-	
-	
 logging
 
 	- main:
@@ -120,70 +108,6 @@ os path:
 			webpage = requests.get('https://google.com')
 
 		fetch_webpage()
-	
-
-class:
-	- константы лучше хранить в Enum. а чтобы вызывать сразу их значения, переопределить:
-		
-		class ConstantType(Enum):
-		def __get__(self, *args):
-			return self.value
-		
-		class IntensityType(ConstantType):
-			LOW = 'Low'
-			MEDIUM = 'Medium'
-			HIGH = 'High'
-			EXTREME = 'Extreme'
-		...
-		if intensity == IntensityType.EXTREME:
-		...
-	
-	- декораторы:
-		@classmethod
-		@staticmethod
-		
-	- переопределение:
-		class WorkerDev(Worker):
-		def __init__(self, name: str, profession: str, experience: int):
-			super().__init__(name, profession, experience)
-			
-	- наследование без аргумента:
-		1. образовать родительский без аргумента, потомка с аргументом
-		2. сделать родительский более гибким - например назначить аргументу параметр по умолчанию либо ""
-		3. либо отказаться от переменных и сделать словарь атрибутов в главном родителе без рамок названий и пр. Затем при наследовании в нём будут храниться все параметры
-		https://ru.stackoverflow.com/questions/897997/%D0%9D%D0%B0%D1%81%D0%BB%D0%B5%D0%B4%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5-%D0%B2-python-%D0%B1%D0%B5%D0%B7-%D0%B0%D1%80%D0%B3%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D0%B0
-		
-	- если есть логика заполнения аттрибутов, а также запрет создания новых, можно использовать:
-		- правила в __init__
-		- __getattr__ / __setattr__:
-			FIELDS = (name, age)  
-			def __setattr__(self, key, value):
-				if key not in self.FIELDS:
-					raise ...
-				if key == 'name' and not 'value':
-					raise ...
-				if key == 'age' and ( value<1 or value>15 ):
-					raise ...
-				self.__dict__[key]=value
-		- getter/setter
-			__slots__ = (_name, _age) # но вообще-то он для уменьшения занимаемой памяти (превращает dict -> tuple)
-			
-			class Cat:
-			def __init__(self, name):
-				self.name = name (если есть setter иначе _name)
-			
-			@property
-			def name(self):
-				return self._name
-		
-			@name.setter
-			def name(self, new_value):
-				if len(new_value) <= 0 or not isinstance(new_value, str):
-					raise ValueError("Имя должно быть непустой строкой")
-				self._name = new_value
-			! в __init__ над о вызывать уже setter, иначе проверку можно будет обойти при инициализации
-			
-			
 
 None:
 	- команду return None в конце тела функции писать не нужно — это делается автоматически

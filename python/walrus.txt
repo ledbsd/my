@@ -1,0 +1,43 @@
+именнованное выражение (:=)
+когда удобно:
+
+======================================================
+	вместо:
+		result = solution(xs, n)
+		if result:
+			# use result
+	
+	используем:
+		if result := solution(xs, n):
+			# use result
+			
+======================================================	
+	вместо:
+		if self._is_special:
+			ans = self._check_nans(context=context)
+			if ans:
+				return ans
+	
+	используем:
+		if self._is_special and (ans := self._check_nans(context=context)):	
+			return ans
+			
+======================================================
+	if any(len(longline := line) >= 100 for line in lines):
+		print("Extremely long line:", longline)
+		
+======================================================
+	while (directive := input("Enter text: ")) != "stop":
+		print("Received directive", directive)
+		
+======================================================
+	# Dictionaries
+	if (value := my_dict.get(key)) is not None:
+		# Do something with value
+
+	# Lists
+	if (item := my_list[index]) some_condition:
+		# Do something with item
+
+======================================================
+======================================================
