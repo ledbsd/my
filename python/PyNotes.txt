@@ -1,3 +1,30 @@
+context manager
+
+	 import contextlib
+	 @contextlib.contextmanager
+	 def db_handler():
+	 try:
+			stop_database()
+	 yield
+	 finally:
+		   start_database()
+	 with db_handler():
+		db_backup()
+		
+
+	 class dbhandler_decorator(contextlib.ContextDecorator):
+		 def __enter__(self):
+			stop_database()
+			return self
+			
+		 def __exit__(self, ext_type, ex_value, ex_traceback):
+			start_database()
+	
+	@dbhandler_decorator()
+	def offline_backup():
+		run("pg_dump database")
+
+
 dataclass
 	
 	- когда класс нужен только для хранения полей
