@@ -27,6 +27,29 @@ class RTrieNode:
 	value: int
 
 ====================================================================================	
+from dataclasses import dataclass
+from typing import List
+from dacite import from_dict
+import json
+
+
+@dataclass
+class Pod:
+    name: str
+    vcsa: list
+
+@dataclass
+class List:
+    pods: List[Pod]
+
+with open('data.json') as file:
+    data = json.load(file)
+
+infra = from_dict(List, data)
+print(infra)
+for pod in infra.pods:
+    if pod.name == 'pd03':
+        print(pod.vcsa)
 
 ====================================================================================	
 ====================================================================================	
