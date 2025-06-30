@@ -1,0 +1,27 @@
+pkg update -f
+pkg upgrade
+pkg install mc bash transmission minidlna samba420 git screen rsync
+pkg autoremove
+pkg clean
+
+chsh -s /usr/local/bin/bash root
+chsh -s bash
+
+[root@phoenix ~]# cat .bashrc
+alias ll="ls -lAF"
+
+[root@phoenix ~]# cat .profile
+. $HOME/.bashrc
+
+
+adduser
+chown -R veeam:veeam /data/veeam
+
+adduser python-user
+
+[root@phoenix /data/python-user]# cat start.sh
+#!/usr/bin/env bash
+
+set -e
+source $HOME/project/venv/bin/activate
+python -u $HOME/project/main.py

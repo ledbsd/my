@@ -5,6 +5,11 @@ set
 		if matched is not None:
             account_id = matched.groupdict()["account_id"]
             collected_account_ids.add(account_id)
+	
+	a = set()
+	a.discard(user)
+	a.add(user)
+	
 
 context manager
 

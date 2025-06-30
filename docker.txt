@@ -1,0 +1,9 @@
+# занятое место и ресурсы
+docker system df
+docker stats
+
+# все логи
+docker logs -f
+
+# при остановке контейнера чтобы удалялся
+docker run --rm
