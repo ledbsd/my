@@ -1,3 +1,29 @@
+ immutable objects - int, float, bool, str, tuple, complex
+ mutable objects - list, set, dict
+
+import
+	строка указывает, что можно импортировать
+	__all__ = ("get_price", "_valid_discount")
+
+getattr
+	отдает атрибут для функций и классов:
+	getattr(functions, "plus", None)	<- returnfunctions.plus or None
+	getattr(some_class, "a") 			<- return a from def __init__(self, a, b)
+	
+
+slices
+	slice всегда создает копию
+	[:n]			- первые n
+	[-n:]			- последние n
+	[n:]			- пропустить первые n
+	[:-n]			- пропустить последние n
+	[::2] 		 	- все четные элементы (0,2,4...)
+	[1::2] 			- все нечетные элементы
+	[::-1] 			- обратная последовательность
+	[:] или [::] 	- копия
+	del s[:]		- удаление содержимого			
+	
+
 set
 	collected_account_ids = set()
 	for arn in arns:
