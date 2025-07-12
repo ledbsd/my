@@ -1,0 +1,59 @@
+1) несмотря на возможность - не стоит давать своим объектам имена match и case
+2) _ - универсальный символ (wildcard), может быть добавлен в конце для отработки всех остальных вариантов
+3) [a,b], (a,b) и a,b равнозначны, ожидается последовательность (кроме строки и байтов), но не set или dict
+4) допустим вызов только типов (float(), str(), MyClass() и т.д.), обращения по индексу недопустимы
+5) после паттерна может быть добавлен guard начинающийся с if, он сработает только при удачном сравнении шаблона
+6) последовательности (sequence) проверяются строго по содержимому и размеру, маппинги (dict) проверяют только конкретные вхождения ключей
+7) имена привязываются (bind) локально, они доступны вне контекста match, для использования внешних констант нужно использовать точку
+8) применяются правила распаковки
+9) для OR случаев должны быть привязаны одинаковые имена
+10)  AS позволит привязать имя даже внутри паттерна
+11)  проверять типы можно даже внутри паттерна и при привязке имени
+
+НЕЛЬЗЯ:
+1) писать **_ для маппингов (dict)
+2) вызывать свои функции или обращаться к какой то коллекции по индексу (a_list[x]) в блоке case
+3) привязывать разные имена при использовании OR (|)
+
+def parse_names(value: str | tuple | list | dict) -> str:
+    match value:
+        case surname, name, second_name:
+            pass
+        case {'surname': surname, 'name': name, 'second_name': second_name} if len(value) == 3:
+            pass
+        case str() if len(value.split()) == 3:
+            surname, name, second_name = value.split()
+            pass
+        case _:
+            return 'Error'
+    return f'Фамилия: {surname}, Имя: {name}, Отчество: {second_name}'
+	
+def parse_names(value):
+    match value:
+        case {'key': 1000, **rest}:
+            return rest['id']
+        case ('error', message) | ('error', message, *_):
+            raise ValueError(message)
+        case {'meta': val, **rest} if not rest:
+            return val['id']
+        case {'meta': {'code': _, 'error': error}, 'info': [{'allowed': allowed}, *_]}:
+            return f'{error}, {allowed}'
+        case (set() as x, _) if len(x) ==2:
+            return max(x)
+        case _:
+            raise ValueError(f'Unknown value: {value}')
+			
+def parse_names(value):
+    match value:
+        case (name, _, salary) if name in ('John', 'Mary'):
+            return salary
+        case ('Helen', age, _):
+            return age
+        case (_, _, _, _, str(something)):
+            return f'Strange: {something}'
+        case (*_, something) if len(value) ==6:
+            return f'{something}'
+        case tuple():
+            return f'Unknown content {value}'
+        case _:
+            raise ValueError('Expected a tuple')
