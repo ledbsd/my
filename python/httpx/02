@@ -1,0 +1,135 @@
+Сравнение requests и httpx в Python
+Ссылки:
+
+Официальная документация HTTPX
+Официальная документация Requests
+Библиотека requests долгое время была стандартом для работы с HTTP-запросами в Python. Однако httpx предлагает дополнительные возможности, сохраняя при этом удобный API. Давайте разберем их различия.
+2. Производительность
+2.1 Connection Pooling (Повторное использование соединений)
+requests создает новое соединение на каждый запрос, что может быть неэффективно.
+httpx использует connection pooling, что снижает задержки и уменьшает нагрузку на сервер.
+Пример в requests (новое соединение каждый раз):
+
+import requests
+
+for _ in range(10):
+    response = requests.get("https://jsonplaceholder.typicode.com/todos/1")
+Пример в httpx (использует повторное соединение):
+
+import httpx
+
+with httpx.Client() as client:
+    for _ in range(10):
+        response = client.get("https://jsonplaceholder.typicode.com/todos/1")
+Вывод: httpx.Client() экономит ресурсы при множественных запросах.
+
+3. Синтаксис: requests vs httpx
+3.1 GET-запрос
+requests:
+
+import requests
+
+response = requests.get("https://jsonplaceholder.typicode.com/todos/1")
+print(response.json()) 
+httpx:
+
+import httpx
+
+response = httpx.get("https://jsonplaceholder.typicode.com/todos/1")
+print(response.json()) 
+Вывод: Синтаксис почти идентичен.
+
+3.2 POST-запрос с JSON
+requests:
+
+import requests
+
+data = {"name": "Test"}
+response = requests.post("https://httpbin.org/post", json=data)
+print(response.json())
+httpx:
+
+import httpx
+
+data = {"name": "Test"}
+response = httpx.post("https://httpbin.org/post", json=data)
+print(response.json())
+Вывод: Абсолютно одинаковый код.
+
+3.3 Таймауты (Timeouts)
+requests:
+
+import requests
+
+try:
+    response = requests.get("https://httpbin.org/delay/5", timeout=2)
+except requests.exceptions.Timeout:
+    print("Запрос превысил время ожидания!")
+httpx:
+
+import httpx
+
+try:
+    response = httpx.get("https://httpbin.org/delay/5", timeout=2)
+except httpx.ReadTimeout:
+    print("Запрос превысил время ожидания!")
+Вывод: Разница только в названии исключения.
+
+4. Сессии (Session vs Client)
+4.1 Использование сессии в requests
+import requests
+
+session = requests.Session()
+session.headers.update({"Authorization": "Bearer token123"})
+
+response = session.get("https://httpbin.org/get")
+print(response.json())
+
+session.close()
+4.2 Использование Client в httpx (Аналог Session)
+import httpx
+
+client = httpx.Client(headers={"Authorization": "Bearer token123"})
+
+response = client.get("https://httpbin.org/get")
+print(response.json())
+
+client.close()
+Вывод: httpx.Client() является аналогом requests.Session(), но работает эффективнее за счет connection pooling.
+
+5. Поддержка HTTP/2
+5.1 HTTP/2 в requests (НЕ поддерживается)
+requests не поддерживает HTTP/2 без сторонних библиотек.
+
+5.2 HTTP/2 в httpx (Встроенная поддержка)
+import httpx
+
+client = httpx.Client(http2=True)
+response = client.get("https://www.google.com")
+
+print(response.http_version)  # "HTTP/2"
+Вывод: HTTP/2 уменьшает задержки и ускоряет загрузку данных.
+
+6. Обработка ошибок
+6.1 Автоматическое выбрасывание исключений (raise_for_status)
+В requests нужно вручную проверять статус-код.
+В httpx можно использовать raise_for_status().
+
+requests:
+
+import requests
+
+response = requests.get("https://jsonplaceholder.typicode.com/invalid-url")
+
+if response.status_code != 200:
+    print("Ошибка запроса!")
+httpx:
+
+import httpx
+
+try:
+    response = httpx.get("https://jsonplaceholder.typicode.com/invalid-url")
+    response.raise_for_status()  # Поднимет исключение, если 4xx/5xx
+except httpx.HTTPStatusError as e:
+    print(f"Ошибка: {e}")
+Вывод: httpx.raise_for_status() автоматически выбрасывает исключение при ошибке.
