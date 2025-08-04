@@ -1,0 +1,154 @@
+HTTPX: Подробный разбор библиотеки
+Ссылки:
+
+Официальная документация HTTPX
+Официальная документация Requests
+1. Введение в HTTPX
+HTTPX — это мощная библиотека для работы с HTTP-запросами в Python. Она является продвинутой альтернативой requests, поддерживает синхронные и асинхронные запросы, но мы разберем только синхронные примеры.
+
+2. Установка
+Перед началом работы установите библиотеку:
+
+pip install httpx
+3. Основные функции HTTPX
+3.1 Отправка GET-запроса
+Метод httpx.get() позволяет отправлять GET-запросы к API и получать ответ.
+
+Пример:
+
+import httpx
+
+response = httpx.get("https://jsonplaceholder.typicode.com/todos/1")
+
+print(response.status_code)  # 200
+print(response.json())       # {'userId': 1, 'id': 1, 'title': 'delectus aut autem', 'completed': False}
+Здесь:
+
+response.status_code — HTTP-код ответа.
+response.json() — парсит JSON-ответ.
+3.2 Отправка POST-запроса
+Метод httpx.post() используется для передачи данных на сервер.
+
+Пример:
+
+import httpx
+
+data = {
+    "title": "Новая задача",
+    "completed": False,
+    "userId": 1
+}
+
+response = httpx.post("https://jsonplaceholder.typicode.com/todos", json=data)
+
+print(response.status_code)  # 201 (Created)
+print(response.json())       # Ответ с созданной записью
+Здесь json=data автоматически сериализует Python-словарь в JSON.
+
+3.3 Отправка данных в application/x-www-form-urlencoded
+Некоторые API требуют данные в формате form-urlencoded вместо JSON.
+
+Пример:
+
+import httpx
+
+data = {"username": "test_user", "password": "123456"}
+
+response = httpx.post("https://httpbin.org/post", data=data)
+
+print(response.json())  # {'form': {'username': 'test_user', 'password': '123456'}, ...}
+3.4 Передача заголовков
+Для работы с API часто нужно передавать заголовки, например Authorization.
+
+Пример:
+
+import httpx
+
+headers = {"Authorization": "Bearer my_secret_token"}
+
+response = httpx.get("https://httpbin.org/get", headers=headers)
+
+print(response.json())  # Заголовки включены в ответ
+3.5 Работа с параметрами запроса
+Метод params добавляет параметры к URL, аналогично ?key=value.
+
+Пример:
+
+import httpx
+
+params = {"userId": 1}
+
+response = httpx.get("https://jsonplaceholder.typicode.com/todos", params=params)
+
+print(response.url)    # https://jsonplaceholder.typicode.com/todos?userId=1
+print(response.json()) # Фильтрованный список задач
+3.6 Отправка файлов
+Если API требует загрузки файлов, можно передать их в files.
+
+Пример:
+
+import httpx
+
+files = {"file": ("example.txt", open("example.txt", "rb"))}
+
+response = httpx.post("https://httpbin.org/post", files=files)
+
+print(response.json())  # Ответ с данными о загруженном файле
+Обратите внимание, что файл нужно закрывать после использования.
+
+4. Работа с сессиями (httpx.Client)
+При множественных запросах к API лучше использовать httpx.Client(), который повторно использует соединения, уменьшая накладные расходы.
+
+4.1 Использование httpx.Client
+Пример:
+
+import httpx
+
+with httpx.Client() as client:
+    response1 = client.get("https://jsonplaceholder.typicode.com/todos/1")
+    response2 = client.get("https://jsonplaceholder.typicode.com/todos/2")
+
+print(response1.json())  # Данные первой задачи
+print(response2.json())  # Данные второй задачи
+Использование httpx.Client позволяет не устанавливать новое соединение для каждого запроса.
+
+4.2 Добавление базовых заголовков в Client
+Чтобы передавать заголовки во всех запросах, можно задать их при создании Client.
+
+Пример:
+
+import httpx
+
+client = httpx.Client(headers={"Authorization": "Bearer my_secret_token"})
+
+response = client.get("https://httpbin.org/get")
+
+print(response.json())  # Заголовки включены в ответ
+client.close()
+Здесь клиент автоматически добавляет Authorization ко всем запросам.
+
+5. Работа с ошибками
+5.1 Проверка статуса ответа (raise_for_status)
+Если API возвращает ошибку (4xx или 5xx), можно вызвать raise_for_status(), чтобы вызвать исключение.
+
+Пример:
+
+import httpx
+
+try:
+    response = httpx.get("https://jsonplaceholder.typicode.com/invalid-url")
+    response.raise_for_status()  # Вызовет исключение при 4xx/5xx
+except httpx.HTTPStatusError as e:
+    print(f"Ошибка запроса: {e}")
+5.2 Обработка таймаутов
+Чтобы избежать зависаний, всегда указывайте timeout.
+
+Пример:
+
+import httpx
+
+try:
+    response = httpx.get("https://httpbin.org/delay/5", timeout=2)
+except httpx.ReadTimeout:
+    print("Запрос превысил лимит времени")
+Здесь, если сервер отвечает более 2 секунд, запрос прервется.
