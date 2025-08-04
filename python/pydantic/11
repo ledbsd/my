@@ -1,0 +1,294 @@
+Применение Fake в Pydantic-моделях
+Теперь мы будем использовать созданный класс Fake в моделях Pydantic. Наша главная цель — автоматическая генерация тестовых данных при инициализации модели.
+
+Зачем это нужно?
+Сейчас мы создаем экземпляр модели запроса на создание пользователя следующим образом:
+
+create_user_request = CreateUserRequestSchema(
+    email=fake.email(),
+    password="string",
+    last_name="string",
+    first_name="string",
+    middle_name="string"
+)
+Если в автотестах нам нужно создать пользователя в разных местах, придется каждый раз вручную заполнять все поля. Это неудобно и увеличивает вероятность ошибок.
+
+Еще один риск — возможные изменения в CreateUserRequestSchema. Если в будущем в модели появятся новые поля или изменятся старые, нам придется обновлять код во всех местах, где создается эта модель.
+
+Чтобы упростить процесс, мы хотим сделать так, чтобы модель автоматически наполнялась случайными значениями:
+
+class CreateUserRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на создание пользователя.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    email: EmailStr = Field(default_factory=fake.email)  
+    # default_factory позволяет установить значение по умолчанию, 
+    # вызывая функцию при каждом создании экземпляра модели. 
+    # В данном случае email будет автоматически заполняться случайным значением.
+
+    # Остальные поля добавляются по аналогии
+Теперь мы можем создавать экземпляр модели без явного указания значений:
+
+create_user_request = CreateUserRequestSchema()
+Гибкость подхода
+Такой способ не ограничивает нас в тестах. Если нам нужно указать конкретное значение, это легко сделать:
+
+# Будет создана модель с email = "user@gmail.com"
+create_user_request = CreateUserRequestSchema(email="user@gmail.com")
+Где еще нужно применить этот подход?
+Этот принцип нужно использовать в моделях запросов:
+
+LoginRequestSchema, RefreshRequestSchema
+CreateUserRequestSchema, UpdateUserRequestSchema
+CreateFileRequestSchema
+CreateCourseRequestSchema, UpdateCourseRequestSchema
+1. Добавляем генерацию данных для LoginRequestSchema и RefreshRequestSchema
+Начнем с простого — добавим генерацию случайных данных в модель LoginRequestSchema. Работаем в файле /clients/authentication/authentication_schema.py:
+
+from pydantic import BaseModel, Field
+
+# Импортируем заранее созданный экземпляр класса Fake
+from tools.fakers import fake
+
+# Остальной код без изменений
+
+class LoginRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str = Field(default_factory=fake.email)  # Добавили генерацию случайного email
+    password: str = Field(default_factory=fake.password)  # Добавили генерацию случайного пароля
+Что мы сделали?
+
+Ранее при создании экземпляра LoginRequestSchema нам приходилось вручную указывать значения для полей email и password. Теперь они заполняются автоматически с помощью default_factory.
+
+default_factory=fake.email — при каждом создании объекта модели будет автоматически генерироваться случайный email.
+default_factory=fake.password — аналогично, но для пароля.
+Это упрощает работу с тестами, так как нам не нужно вручную передавать тестовые данные.
+
+Важно! Обратите внимание, что мы добавили генерацию случайных данных для email и password, но для успешной авторизации нужны реальные учетные данные пользователя. То есть:
+
+Значения, созданные по умолчанию, не соответствуют реальным пользователям в системе.
+Такой подход полезен для тестирования авторизации с невалидными данными (например, проверка реакции системы на случайные пароли).
+Если в тесте нужно использовать существующего пользователя, можно передать реальные данные вручную, также как мы делали это ранее:
+login_request = LoginRequestSchema(email="user@example.com", password="securepassword123")
+Теперь по аналогии добавим генерацию данных в RefreshRequestSchema:
+
+class RefreshRequestSchema(BaseModel):
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    # Добавили генерацию случайного предложения
+    refresh_token: str = Field(alias="refreshToken", default_factory=fake.sentence)
+Что изменилось?
+
+Мы добавили default_factory=fake.sentence, который автоматически генерирует случайную строку, похожую на токен.
+Опять же, важно понимать, что случайный refresh_token не будет валидным. Этот подход можно использовать для негативных тестов, например, чтобы проверить, как система реагирует на недействительные токены.
+2. Добавляем генерацию данных для CreateUserRequestSchema и UpdateUserRequestSchema
+Теперь добавим генерацию случайных данных в модель CreateUserRequestSchema. Работаем в файле /clients/users/users_schema.py:
+
+from pydantic import BaseModel, Field, EmailStr, ConfigDict
+
+# Импортируем заранее созданный экземпляр класса Fake
+from tools.fakers import fake
+
+# Остальной код без изменений
+
+class CreateUserRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на создание пользователя.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Добавили генерацию случайного email
+    email: EmailStr = Field(default_factory=fake.email)
+    # Добавили генерацию случайного пароля
+    password: str = Field(default_factory=fake.password)
+    # Добавили генерацию случайной фамилии
+    last_name: str = Field(alias="lastName", default_factory=fake.last_name)
+    # Добавили генерацию случайного имени
+    first_name: str = Field(alias="firstName", default_factory=fake.first_name)
+    # Добавили генерацию случайного отчества
+    middle_name: str = Field(alias="middleName", default_factory=fake.middle_name)
+Что изменилось?
+
+Ранее, чтобы создать объект CreateUserRequestSchema, нужно было вручную передавать все поля:
+
+create_user_request = CreateUserRequestSchema(
+    email="user@example.com",
+    password="securepassword",
+    last_name="Doe",
+    first_name="John",
+    middle_name="Michael"
+)
+Теперь благодаря default_factory все поля автоматически заполняются случайными значениями:
+
+create_user_request = CreateUserRequestSchema()
+Что делает каждый default_factory:
+
+fake.email — генерирует случайный email.
+fake.password — создает случайный пароль.
+fake.last_name — случайная фамилия.
+fake.first_name — случайное имя.
+fake.middle_name — случайное отчество.
+Использование default_factory упрощает написание тестов и делает их более гибкими. Если нам нужно задать конкретное значение, мы можем передать его вручную:
+
+create_user_request = CreateUserRequestSchema(email="custom@example.com")
+Теперь сделаем то же самое для модели обновления пользователя UpdateUserRequestSchema:
+
+class UpdateUserRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на обновление пользователя.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Добавили генерацию случайного email
+    email: EmailStr | None = Field(default_factory=fake.email)
+    # Добавили генерацию случайной фамилии
+    last_name: str | None = Field(alias="lastName", default_factory=fake.last_name)
+    # Добавили генерацию случайного имени
+    first_name: str | None = Field(alias="firstName", default_factory=fake.first_name)
+    # Добавили генерацию случайного отчества
+    middle_name: str | None = Field(alias="middleName", default_factory=fake.middle_name)
+В чем разница с CreateUserRequestSchema?
+
+В UpdateUserRequestSchema все поля теперь допускают None, то есть их передача не обязательна. Это логично, ведь при обновлении данных мы можем менять только отдельные поля, а не заполнять всю модель целиком.
+
+Пример использования:
+
+update_user_request = UpdateUserRequestSchema(first_name="Alex")
+В этом случае только поле first_name будет установлено вручную, а остальные заполнятся случайными значениями.
+
+3. Добавляем генерацию данных для CreateFileRequestSchema
+Теперь добавим автоматическую генерацию данных в модель CreateFileRequestSchema. Работаем в файле /clients/files/files_schema.py:
+
+from pydantic import BaseModel, HttpUrl, Field
+
+# Импортируем заранее созданный экземпляр класса Fake
+from tools.fakers import fake
+
+# Остальной код без изменений
+
+class CreateFileRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на создание файла.
+    """
+    # Добавили генерацию случайного названия файла с расширением PNG
+    filename: str = Field(default_factory=lambda: f"{fake.uuid4()}.png")
+    # Директорию оставляем статичной, чтобы все тестовые файлы на сервере попадали в одну папку
+    directory: str = Field(default="tests")
+    upload_file: str
+Что изменилось?
+
+Ранее, чтобы создать объект CreateFileRequestSchema, нужно было вручную передавать все поля, включая filename:
+
+create_file_request = CreateFileRequestSchema(
+    filename="example.png",
+    directory="tests",
+    upload_file="file_data"
+)
+Теперь, благодаря default_factory, название файла будет автоматически генерироваться как случайный UUID + .png:
+
+create_file_request = CreateFileRequestSchema(upload_file="file_data")
+Как работает генерация случайных данных?
+filename:
+Используем fake.uuid4() для генерации случайного UUID, добавляя к нему расширение .png. Это гарантирует, что все файлы будут иметь уникальные имена и не будет конфликтов при загрузке.
+
+directory:
+Оставляем статичное значение "tests". Это сделано для упрощения тестирования — все загружаемые тестовые файлы будут попадать в одну папку.
+
+Почему не генерируем случайную директорию?
+В реальных системах файлы обычно хранятся в структурированных каталогах, а в тестах важно контролировать, куда они попадают. Если бы директория была случайной, файлы разбрасывались бы по разным местам, что усложнило бы их поиск.
+
+В продакшене обычно используется удаленное хранилище (например, S3 или MinIO), но принцип остается тем же: файлы группируются в каталоги по определенной логике. В тестах мы искусственно ограничиваем расположение файлов, чтобы избежать беспорядка.
+
+4. Добавляем генерацию данных для CreateCourseRequestSchema, UpdateCourseRequestSchema
+Добавим автоматическую генерацию данных для CreateCourseRequestSchema. Работаем в файле /clients/courses/courses_schema.py:
+
+from pydantic import BaseModel, Field, ConfigDict
+
+from clients.files.files_schema import FileSchema
+from clients.users.users_schema import UserSchema
+# Импортируем заранее созданный экземпляр класса Fake
+from tools.fakers import fake
+
+# Остальной код без изменений
+
+class CreateCourseRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на создание курса.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Добавили генерацию случайного заголовка
+    title: str = Field(default_factory=fake.sentence)
+    # Добавили генерацию случайного максимального балла
+    max_score: int = Field(alias="maxScore", default_factory=fake.max_score)
+    # Добавили генерацию случайного минимального балла
+    min_score: int = Field(alias="minScore", default_factory=fake.min_score)
+    # Добавили генерацию случайного описания
+    description: str = Field(default_factory=fake.text)
+    # Добавили генерацию случайного предполагаемого времени прохождения курса
+    estimated_time: str = Field(alias="estimatedTime", default_factory=fake.estimated_time)
+    # Добавили генерацию случайного идентификатора файла
+    preview_file_id: str = Field(alias="previewFileId", default_factory=fake.uuid4)
+    # Добавили генерацию случайного идентификатора пользователя
+    created_by_user_id: str = Field(alias="createdByUserId", default_factory=fake.uuid4)
+Что изменилось?
+
+Теперь при создании CreateCourseRequestSchema можно не указывать значения вручную, так как они будут заполняться автоматически:
+
+create_course_request = CreateCourseRequestSchema()
+Генерация случайных данных:
+title, description – случайные значения с fake.sentence() и fake.text().
+max_score, min_score – случайные баллы.
+estimated_time – случайное значение, имитирующее время прохождения курса.
+preview_file_id, created_by_user_id – случайные UUID.
+Важно! Генерируемые preview_file_id и created_by_user_id не будут соответствовать реальным данным в системе.
+
+Для позитивных тестов (когда курс должен успешно создаваться) нужно передавать реальные идентификаторы существующих файлов и пользователей:
+
+create_course_request = CreateCourseRequestSchema(
+    preview_file_id="a1b2c3d4-5678-90ab-cdef-1234567890ab",
+    created_by_user_id="user-uuid-1234-5678-90ab-cdef"
+)
+Для негативных тестов (например, "Файл не найден", "Пользователь не найден") можно использовать случайные UUID:
+
+create_course_request = CreateCourseRequestSchema()
+В этом случае запрос отправится с несуществующими идентификаторами, и можно проверить, как система реагирует на такие ситуации.
+
+Теперь аналогично добавим генерацию данных для UpdateCourseRequestSchema:
+
+class UpdateCourseRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на обновление курса.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    # Добавили генерацию случайного заголовка
+    title: str | None = Field(default_factory=fake.sentence)
+    # Добавили генерацию случайного максимального балла
+    max_score: int | None = Field(alias="maxScore", default_factory=fake.max_score)
+    # Добавили генерацию случайного минимального балла
+    min_score: int | None = Field(alias="minScore", default_factory=fake.min_score)
+    # Добавили генерацию случайного описания
+    description: str | None = Field(default_factory=fake.text)
+    # Добавили генерацию случайного предполагаемого времени прохождения курса
+    estimated_time: str | None = Field(alias="estimatedTime", default_factory=fake.estimated_time)
+Разница между CreateCourseRequestSchema и UpdateCourseRequestSchema
+
+В UpdateCourseRequestSchema все поля могут быть None, чтобы передавать только те данные, которые нужно обновить.
+В UpdateCourseRequestSchema нет preview_file_id и created_by_user_id, потому что обновление курса не предполагает смену автора или превью-файла.
+Важно! Генерация случайных данных в модели удобна, но не всегда подходит для тестирования всей бизнес-логики.
+
+Мы добавляем генерацию случайных данных по умолчанию для всех запросов, чтобы упростить работу с тестовыми данными. Однако, необходимо учитывать контекст тестирования:
+
+Если вам нужно проверить специфический бизнес-кейс, полагаться на случайные данные нельзя.
+В таких случаях нужно передавать конкретные значения в модель вручную, чтобы обеспечить корректную проверку логики.
+Примеры:
+
+Где случайные данные подходят: Максимальный (max_score) и минимальный (min_score) баллы уже генерируются в корректных диапазонах (50-100 и 1-30), поэтому для стандартных тестов можно использовать случайные значения
+Где случайные данные не подойдут: Если вы тестируете негативный кейс, когда max_score меньше min_score, случайная генерация не поможет — вам нужно вручную передать некорректные данные (max_score=20, min_score=30) и убедиться, что система правильно обработает ошибку.
+Вывод: генерация случайных данных удобна, но всегда проверяйте, подходят ли они для вашего теста или требуется передача кастомных значений.
