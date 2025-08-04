@@ -1,0 +1,764 @@
+Практикуемся в написании Pydantic-моделей
+Ссылки:
+
+Распаковка словаря в python
+Анонимная функция lambda в python
+Встроенные типы данных в Pydantic
+Встроенные сетевые типы данных в Pydantic
+Давайте попрактикуемся в написании моделей и разберем полезный функционал, который предоставляет нам Pydantic. Умение работать с моделями Pydantic — крайне важный навык, так как в будущем большая часть работы с API в автотестах будет основываться именно на них.
+
+1. Создаем файл pydantic_basics.py
+В корне проекта autotests-api создадим новый файл:
+
+.
+└── autotests-api/
+    └── pydantic_basics.py
+Этот файл будет использоваться для знакомства с основами Pydantic.
+
+2. Создание базовой модели
+Рассмотрим следующий JSON-объект, который нам нужно описать с помощью Pydantic:
+
+{
+  "id": "string",
+  "title": "string",
+  "maxScore": 0,
+  "minScore": 0,
+  "description": "string",
+  "estimatedTime": "string"
+}
+Для описания такой структуры создадим Pydantic-модель: 
+
+from pydantic import BaseModel
+
+
+class CourseSchema(BaseModel):
+    id: str
+    title: str
+    maxScore: int
+    minScore: int
+    description: str
+    estimatedTime: str
+Разбор кода
+
+BaseModel — это базовый класс, от которого наследуются все модели Pydantic. Он предоставляет встроенную валидацию данных, сериализацию и десериализацию.
+Атрибуты модели (id, title, maxScore, minScore, description, estimatedTime) соответствуют ключам JSON-объекта и имеют строго заданные типы (str или int).
+Автоматическая валидация: если переданный в CourseSchema объект не соответствует ожидаемым типам, Pydantic автоматически выбросит ошибку.
+TypedDict vs. Pydantic
+На первый взгляд, синтаксис Pydantic-модели похож на TypedDict, но есть ключевые различия:
+
+Функция	TypedDict	Pydantic
+Основа	Обычный словарь	Класс, наследуемый от BaseModel
+Валидация	Нет встроенной валидации	Встроенная валидация типов
+Автопреобразование	Нет	Приведение типов (если возможно)
+Использование	Работает как dict	Работает как объект с атрибутами
+3. Инициализация модели
+Теперь давайте разберемся, как можно инициализировать модель, то есть создать экземпляр класса модели CourseSchema.
+
+1. Стандартный способ
+Самый распространенный и классический способ инициализации модели — это передача аргументов при создании объекта, как в обычном Python-классе.
+
+Добавим следующий код в pydantic_basics.py:
+
+# Инициализируем модель CourseSchema через передачу аргументов
+course_default_model = CourseSchema(
+    id="course-id",
+    title="Playwright",
+    maxScore=100,
+    minScore=10,
+    description="Playwright",
+    estimatedTime="1 week"
+)
+print('Course default model:', course_default_model)
+Разбор кода:
+
+Мы передаем аргументы в конструктор класса CourseSchema, указывая значения для каждого поля.
+Pydantic автоматически проверяет, что переданные значения соответствуют ожидаемым типам (str, int и т. д.).
+При выводе в print объект отображается в виде строки, но на самом деле это Pydantic-модель, а не обычный словарь.
+2. Инициализация с использованием словаря
+Теперь рассмотрим случай, когда у нас есть словарь с данными, и мы хотим передать его в модель.
+
+Добавим в pydantic_basics.py следующий код:
+
+# Инициализируем модель CourseSchema через распаковку словаря
+course_dict = {
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    "estimatedTime": "1 week"
+}
+course_dict_model = CourseSchema(**course_dict)
+print('Course dict model:', course_dict_model)
+Разбор кода:
+
+Мы создали словарь course_dict, где ключи соответствуют полям CourseSchema.
+Используем **course_dict для распаковки словаря, передавая его содержимое в модель.
+Этот метод удобен, когда у нас уже есть данные в виде словаря, например, полученные из JSON-ответа API.
+Применение на практике:
+Когда мы вызываем response.json(), мы получаем словарь, который можно передать в Pydantic-модель так:
+
+GetUserResponse(**response.json())
+Это позволяет сразу работать с объектом, а не с сырыми данными.
+
+3. Инициализация с использованием JSON
+Теперь разберем ситуацию, когда у нас есть JSON в виде строки, и мы хотим создать Pydantic-модель из этой строки.
+
+Добавим в pydantic_basics.py следующий код:
+
+# Инициализируем модель CourseSchema через JSON
+course_json = """
+{
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    "estimatedTime": "1 week"
+}
+"""
+course_json_model = CourseSchema.model_validate_json(course_json)
+print('Course JSON model:', course_json_model)
+Разбор кода:
+
+У нас есть JSON-строка course_json.
+Мы используем метод model_validate_json, который парсит строку и создает объект CourseSchema.
+Это полезно, если JSON-данные хранятся в файле или приходят в виде строки от сервера.
+Применение на практике:
+Если у нас есть JSON-файл, мы можем загрузить его в Pydantic-модель так:
+
+import json
+
+with open("course.json", "r") as file:
+    course_data = file.read()
+
+course_model = CourseSchema.model_validate_json(course_data)
+print(course_model)
+Вывод
+Мы разобрали три способа создания Pydantic-модели. Каждый из них удобен в разных ситуациях:
+
+Прямая передача аргументов — если данные заданы явно.
+Распаковка словаря — когда данные приходят в виде dict.
+Использование JSON — когда данные хранятся в файле или приходят от API.
+4. Использование alias в Pydantic
+При описании модели CourseSchema мы следуем Python-стилю именования переменных — snake_case. Однако в API-ответах данные часто приходят в другом формате, например, в camelCase:
+
+{
+  "id": "course-id",
+  "title": "Playwright",
+  "maxScore": 100,
+  "minScore": 10,
+  "description": "Playwright",
+  "estimatedTime": "1 week"
+}
+Здесь названия полей maxScore, minScore и estimatedTime не соответствуют стилю snake_case, принятому в Python.
+
+Чтобы исправить это и продолжать работать с привычным стилем, Pydantic поддерживает механизм alias. Он позволяет задать альтернативное имя (alias) для полей модели.
+
+ Как задать alias в Pydantic
+Обновим модель CourseSchema, используя Field(alias="...") для переименования полей:
+
+from pydantic import BaseModel, Field
+
+
+class CourseSchema(BaseModel):
+    id: str
+    title: str
+    max_score: int = Field(alias="maxScore")
+    min_score: int = Field(alias="minScore")
+    description: str
+    estimated_time: str = Field(alias="estimatedTime")
+Разбор кода:
+
+Поля max_score, min_score и estimated_time теперь используют Field(alias="...").
+Это позволяет использовать snake_case внутри Python-кода, но принимать camelCase-данные из API.
+При создании модели, например через CourseSchema(**course_dict), Pydantic автоматически сопоставляет JSON-ключи с полями модели.
+Вывод: В результате course_model будет выглядеть так:
+
+id='course-id' title='Playwright' max_score=100 min_score=10 description='Playwright' estimated_time='1 week'
+Обратная конвертация (из модели в JSON)
+Когда мы сериализуем Pydantic-модель обратно в JSON (dict() или json()), Pydantic по умолчанию сохраняет Python-стиль именования (snake_case).
+
+print(course_dict_model.model_dump())
+Но если нам нужно вернуть JSON в camelCase, то можно использовать by_alias=True:
+
+print(course_dict_model.model_dump(by_alias=True))
+Вывод:
+
+{
+  "id": "course-id",
+  "title": "Playwright",
+  "maxScore": 100,
+  "minScore": 10,
+  "description": "Playwright",
+  "estimatedTime": "1 week"
+}
+Таким образом, мы можем легко работать с API-данными, которые используют camelCase, не нарушая Python-кодстайл.
+
+Использование alias_generator для автоматического преобразования
+Если в API все поля приходят в camelCase, то вместо того, чтобы указывать alias вручную для каждого поля, можно автоматизировать процесс с помощью alias_generator:
+
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
+
+
+class CourseSchema(BaseModel):
+    # Автоматическое преобразование snake_case → camelCase
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    id: str
+    title: str
+    max_score: int
+    min_score: int
+    description: str
+    estimated_time: str
+
+
+course_data = {
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    "estimatedTime": "1 week"
+}
+
+course_model = CourseSchema(**course_data)
+print(course_model.model_dump(by_alias=True))
+Что здесь происходит?
+
+alias_generator=to_camel автоматически превращает snake_case в camelCase.
+populate_by_name=True позволяет передавать как camelCase, так и snake_case без ошибок.
+В model_dump(by_alias=True) Pydantic сам приводит имена полей в camelCase.
+Итог
+Alias в Pydantic позволяет:
+
+Работать в Python-коде со snake_case, но поддерживать API-данные в camelCase.
+Упрощать парсинг JSON-ответов, автоматически маппя ключи.
+Удобно сериализовать Python-объекты в API-формат (model_dump(by_alias=True)).
+Использовать alias_generator, чтобы не прописывать alias вручную.
+Это важный механизм, который мы будем активно использовать при работе с API-запросами/ответами в будущем!
+
+5. Значения по умолчанию в Pydantic
+При создании Pydantic-моделей можно задать значения по умолчанию для полей, чтобы не указывать их при инициализации объекта. Это позволяет:
+
+Упростить создание объектов, исключив обязательные параметры.
+Избежать ошибок при отсутствии данных.
+Автоматически подставлять предустановленные значения.
+Задание значений по умолчанию
+Есть два основных способа задать default-значение:
+
+Простое присваивание: поле: тип = значение.
+Через Field(default=...).
+Рассмотрим на примере модели курса:
+
+from pydantic import BaseModel, Field
+
+
+class CourseSchema(BaseModel):
+    id: str = "course-id"
+    title: str = "Playwright"
+    max_score: int = Field(alias="maxScore", default=1000)
+    min_score: int = Field(alias="minScore", default=100)
+    description: str = "Playwright course"
+    estimated_time: str = Field(alias="estimatedTime", default="2 weeks")
+
+# Создадим объект модели без передачи параметров
+course = CourseSchema()
+print(course)
+Как это работает?
+
+id, title, description заданы напрямую через =.
+max_score, min_score, estimated_time заданы через Field(default=...), но при этом используют alias.
+Если поле не передано при создании модели, Pydantic подставляет значение по умолчанию.
+Использование default_factory для динамических значений
+Иногда значения по умолчанию должны быть уникальными или вычисляться в момент создания объекта. Для этого используется default_factory.
+
+Пример: генерация случайного id для курса.
+
+import uuid
+from pydantic import BaseModel, Field
+
+
+class CourseSchema(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = "Playwright"
+    max_score: int = Field(alias="maxScore", default=1000)
+    min_score: int = Field(alias="minScore", default=100)
+    description: str = "Playwright course"
+    estimated_time: str = Field(alias="estimatedTime", default="2 weeks")
+
+
+# Создадим несколько объектов модели
+course1 = CourseSchema()
+course2 = CourseSchema()
+
+print(course1.id)
+print(course2.id)
+Как это работает?
+
+default_factory принимает функцию, которая вызывается при создании объекта.
+В данном случае используется uuid.uuid4(), который генерирует уникальный идентификатор.
+Каждый новый объект получает новый id, даже если его не передавать вручную.
+Разница между default и default_factory
+Метод	Когда использовать	Пример
+default=...	Когда значение фиксированное.	max_score: int = Field(default=1000)
+default_factory=...	Когда значение должно вычисляться при создании объекта.	id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+Итог
+Значения по умолчанию в Pydantic:
+
+Можно задать непосредственно (поле: тип = значение) или через Field(default=...).
+default_factory позволяет генерировать значения на лету (например, UUID).
+Это удобный механизм для облегчения работы с API и моделями данных.
+Мы будем активно использовать этот механизм при работе с API, JSON и обработке данных.
+
+6. Вложенные структуры
+В Pydantic моделях можно использовать вложенные структуры, что позволяет нам более точно описывать сложные JSON-объекты. Рассмотрим следующий JSON и создадим для него соответствующие модели:
+
+{
+  "id": "string",
+  "title": "string",
+  "maxScore": 0,
+  "minScore": 0,
+  "description": "string",
+  "previewFile": {
+    "id": "string",
+    "filename": "string",
+    "directory": "string",
+    "url": "https://example.com/"
+  },
+  "estimatedTime": "string",
+  "createdByUser": {
+    "id": "string",
+    "email": "user@example.com",
+    "lastName": "string",
+    "firstName": "string",
+    "middleName": "string"
+  }
+}
+Добавим две новые модели FileSchema, UserSchema и обновим CourseSchema:
+
+import uuid
+
+from pydantic import BaseModel, Field
+
+
+# Добавили модель FileSchema
+class FileSchema(BaseModel):
+    id: str
+    url: str
+    filename: str
+    directory: str
+
+
+# Добавили модель UserSchema
+class UserSchema(BaseModel):
+    id: str
+    email: str
+    last_name: str = Field(alias="lastName")
+    first_name: str = Field(alias="firstName")
+    middle_name: str = Field(alias="middleName")
+
+
+class CourseSchema(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = "Playwright"
+    max_score: int = Field(alias="maxScore", default=1000)
+    min_score: int = Field(alias="minScore", default=100)
+    description: str = "Playwright course"
+    # Вложенный объект для файла-превью
+    preview_file: FileSchema = Field(alias="previewFile")
+    estimated_time: str = Field(alias="estimatedTime", default="2 weeks")
+    # Вложенный объект для пользователя, создавшего курс
+    created_by_user: UserSchema = Field(alias="createdByUser")
+Инициализация вложенных моделей
+Теперь посмотрим, как создавать экземпляры CourseSchema разными способами.
+
+1. Инициализация через аргументы:
+
+# Инициализируем модель CourseSchema через передачу аргументов
+course_default_model = CourseSchema(
+    id="course-id",
+    title="Playwright",
+    maxScore=100,
+    minScore=10,
+    description="Playwright",
+    # Добавили инициализацию вложенной модели FileSchema
+    previewFile=FileSchema(
+        id="file-id",
+        url="http://localhost:8000",
+        filename="file.png",
+        directory="courses",
+    ),
+    estimatedTime="1 week",
+    # Добавили инициализацию вложенной модели UserSchema
+    createdByUser=UserSchema(
+        id="user-id",
+        email="user@gmail.com",
+        lastName="Bond",
+        firstName="Zara",
+        middleName="Alise"
+    )
+)
+print('Course default model:', course_default_model)
+Важно:
+
+При передаче вложенных объектов мы должны явно создавать экземпляры FileSchema и UserSchema.
+maxScore, minScore, previewFile, createdByUser — должны использовать алиасы, так как JSON-ключи отличаются от Python-названий полей.
+2. Инициализация через dict (распаковка словаря):
+
+# Инициализируем модель CourseSchema через распаковку словаря
+course_dict = {
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    # Добавили ключ previewFile
+    "previewFile": {
+        "id": "file-id",
+        "url": "http://localhost:8000",
+        "filename": "file.png",
+        "directory": "courses"
+    },
+    "estimatedTime": "1 week",
+    # Добавили ключ createdByUser
+    "createdByUser": {
+        "id": "user-id",
+        "email": "user@gmail.com",
+        "lastName": "Bond",
+        "firstName": "Zara",
+        "middleName": "Alise"
+    }
+}
+course_dict_model = CourseSchema(**course_dict)
+print('Course dict model:', course_dict_model)
+Здесь Pydantic автоматически преобразует dict в вложенные объекты:
+
+Поля previewFile и createdByUser автоматически станут экземплярами FileSchema и UserSchema.
+Алиасы также работают корректно, так как Pydantic умеет сопоставлять JSON-ключи с полями модели.
+3. Инициализация через JSON:
+
+# Инициализируем модель CourseSchema через JSON
+course_json = """
+{
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    "previewFile": {
+        "id": "file-id",
+        "url": "http://localhost:8000",
+        "filename": "file.png",
+        "directory": "courses"
+    },
+    "estimatedTime": "1 week",
+    "createdByUser": {
+        "id": "user-id",
+        "email": "user@gmail.com",
+        "lastName": "Bond",
+        "firstName": "Zara",
+        "middleName": "Alise"
+    }
+}
+"""
+course_json_model = CourseSchema.model_validate_json(course_json)
+print('Course JSON model:', course_json_model)
+Важно:
+
+model_validate_json() автоматически преобразует JSON-строку в объект CourseSchema.
+Вложенные структуры previewFile и createdByUser корректно преобразуются в соответствующие модели.
+Итоги
+В Pydantic можно использовать вложенные модели, чтобы структурировать сложные JSON-данные.
+Три варианта инициализации: передача аргументов, dict (распаковка словаря), JSON.
+Pydantic автоматически преобразует вложенные структуры в соответствующие модели, если данные корректно переданы.
+Использование Field(alias="…") позволяет задавать соответствие между Python-атрибутами и JSON-ключами.
+Теперь, имея этот фундамент, можно легко работать с вложенными объектами в API и других сервисах.
+
+7. Методы в Pydantic-моделях
+В Pydantic-модели UserSchema добавлен метод get_username, который формирует имя пользователя, объединяя first_name и last_name. Давайте разберём этот код подробнее:
+
+# Добавили модель UserSchema
+class UserSchema(BaseModel):
+    id: str
+    email: str
+    last_name: str = Field(alias="lastName")
+    first_name: str = Field(alias="firstName")
+    middle_name: str = Field(alias="middleName")
+
+    def get_username(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+Полезные моменты:
+
+Использование методов в Pydantic-модели – хотя Pydantic в основном используется для валидации и сериализации данных, мы можем добавлять методы для удобного представления или обработки данных.
+Метод get_username – возвращает строку с полным именем пользователя, объединяя first_name и last_name.
+Использование аннотации типов – метод возвращает str, что делает код более читаемым.
+8. Встроенные типы
+Pydantic предоставляет ряд встроенных типов, которые помогают автоматически валидировать данные. Например:
+
+EmailStr — проверяет, является ли строка корректным email-адресом.
+HttpUrl — проверяет, что строка содержит корректный URL.
+Эти типы помогают избежать ошибок валидации и обеспечивают, чтобы данные соответствовали ожидаемому формату.
+
+import uuid
+
+from pydantic import BaseModel, Field, EmailStr, HttpUrl
+
+
+# Добавили модель FileSchema
+class FileSchema(BaseModel):
+    id: str
+    url: HttpUrl  # Используем HttpUrl вместо str
+    filename: str
+    directory: str
+
+
+# Добавили модель UserSchema
+class UserSchema(BaseModel):
+    id: str
+    email: EmailStr  # Используем EmailStr вместо str
+    last_name: str = Field(alias="lastName")
+    first_name: str = Field(alias="firstName")
+    middle_name: str = Field(alias="middleName")
+
+    def get_username(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+Что здесь происходит?
+
+В UserSchema поле email теперь использует EmailStr. Это означает, что при попытке передать некорректный email (например, "invalid-email") Pydantic выдаст ошибку.
+В FileSchema поле url теперь использует HttpUrl, что гарантирует, что в него можно передавать только корректные ссылки.
+Ошибка при передаче некорректных данных:
+# Инициализируем FileSchema c некорректным url
+file = FileSchema(
+    id="file-id",
+    url="localhost",
+    filename="file.png",
+    directory="courses",
+)
+Если запустить этот код, то мы получим ошибку валидации:
+
+validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for FileSchema
+url
+  Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='localhost', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.10/v/url_parsing
+Что значит эта ошибка?
+
+Pydantic сообщает, что переданное значение "localhost" не является корректным URL.
+Указывается, что ошибка связана с url_parsing, а также приводится ссылка на документацию.
+Обработка ошибки
+Мы можем обработать эту ошибку с помощью try-except:
+
+# Инициализируем FileSchema c некорректным url
+try:
+    file = FileSchema(
+        id="file-id",
+        url="localhost",
+        filename="file.png",
+        directory="courses",
+    )
+except ValidationError as error:
+    print(error)
+    print(error.errors())
+Разбор error.errors()
+
+error содержит текст ошибки с пояснением.
+error.errors() возвращает список словарей с подробной информацией об ошибке, например:
+[
+    {
+        'loc': ('url',),
+        'msg': 'Input should be a valid URL, relative URL without a base',
+        'type': 'url_parsing',
+        'input': 'localhost',
+    }
+]
+Что здесь важного?
+
+loc — указывает, в каком поле произошла ошибка (url).
+msg — объясняет, в чем проблема.
+type — тип ошибки (url_parsing).
+input — проблемное значение (localhost).
+Таким образом, встроенные типы Pydantic помогают автоматически валидировать данные, а ошибки легко обрабатывать в коде.
+
+9. Финальный скрипт
+Мы познакомились с большинством самых полезных функций pydantic, которые нам понадобятся в будущем.
+
+Посмотрим, как выглядит финальный скрипт pydantic_basics.py:
+
+import uuid
+
+from pydantic import BaseModel, Field, EmailStr, HttpUrl, ValidationError
+
+
+# Добавили модель FileSchema
+class FileSchema(BaseModel):
+    id: str
+    url: HttpUrl  # Используем HttpUrl вместо str
+    filename: str
+    directory: str
+
+
+# Добавили модель UserSchema
+class UserSchema(BaseModel):
+    id: str
+    email: EmailStr  # Используем EmailStr вместо str
+    last_name: str = Field(alias="lastName")
+    first_name: str = Field(alias="firstName")
+    middle_name: str = Field(alias="middleName")
+
+    def get_username(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
+
+class CourseSchema(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = "Playwright"
+    max_score: int = Field(alias="maxScore", default=1000)
+    min_score: int = Field(alias="minScore", default=100)
+    description: str = "Playwright course"
+    # Вложенный объект для файла-превью
+    preview_file: FileSchema = Field(alias="previewFile")
+    estimated_time: str = Field(alias="estimatedTime", default="2 weeks")
+    # Вложенный объект для пользователя, создавшего курс
+    created_by_user: UserSchema = Field(alias="createdByUser")
+
+
+# Инициализируем модель CourseSchema через передачу аргументов
+course_default_model = CourseSchema(
+    id="course-id",
+    title="Playwright",
+    maxScore=100,
+    minScore=10,
+    description="Playwright",
+    # Добавили инициализацию вложенной модели FileSchema
+    previewFile=FileSchema(
+        id="file-id",
+        url="http://localhost:8000",
+        filename="file.png",
+        directory="courses",
+    ),
+    estimatedTime="1 week",
+    # Добавили инициализацию вложенной модели UserSchema
+    createdByUser=UserSchema(
+        id="user-id",
+        email="user@gmail.com",
+        lastName="Bond",
+        firstName="Zara",
+        middleName="Alise"
+    )
+)
+print('Course default model:', course_default_model)
+
+# Инициализируем модель CourseSchema через распаковку словаря
+course_dict = {
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    # Добавили ключ previewFile
+    "previewFile": {
+        "id": "file-id",
+        "url": "http://localhost:8000",
+        "filename": "file.png",
+        "directory": "courses"
+    },
+    "estimatedTime": "1 week",
+    # Добавили ключ createdByUser
+    "createdByUser": {
+        "id": "user-id",
+        "email": "user@gmail.com",
+        "lastName": "Bond",
+        "firstName": "Zara",
+        "middleName": "Alise"
+    }
+}
+course_dict_model = CourseSchema(**course_dict)
+print('Course dict model:', course_dict_model)
+print(course_dict_model.model_dump())
+print(course_dict_model.model_dump(by_alias=True))
+
+# Инициализируем модель CourseSchema через JSON
+course_json = """
+{
+    "id": "course-id",
+    "title": "Playwright",
+    "maxScore": 100,
+    "minScore": 10,
+    "description": "Playwright",
+    "previewFile": {
+        "id": "file-id",
+        "url": "http://localhost:8000",
+        "filename": "file.png",
+        "directory": "courses"
+    },
+    "estimatedTime": "1 week",
+    "createdByUser": {
+        "id": "user-id",
+        "email": "user@gmail.com",
+        "lastName": "Bond",
+        "firstName": "Zara",
+        "middleName": "Alise"
+    }
+}
+"""
+course_json_model = CourseSchema.model_validate_json(course_json)
+print('Course JSON model:', course_json_model)
+
+# Инициализируем FileSchema c некорректным url
+try:
+    file = FileSchema(
+        id="file-id",
+        url="localhost",
+        filename="file.png",
+        directory="courses",
+    )
+except ValidationError as error:
+    print(error)
+    print(error.errors())
+Запустим скрипт командой:
+
+python -m pydantic_basics
+В результате выполнения скрипта получим примерно следующий вывод в консоль:
+
+Course default model: id='course-id' title='Playwright' max_score=100 min_score=10 description='Playwright' preview_file=FileSchema(id='file-id', url=HttpUrl('http://localhost:8000/'), filename='file.png', directory='courses') estimated_time='1 week' created_by_user=UserSchema(id='user-id', email='user@gmail.com', last_name='Bond', first_name='Zara', middle_name='Alise')
+Course dict model: id='course-id' title='Playwright' max_score=100 min_score=10 description='Playwright' preview_file=FileSchema(id='file-id', url=HttpUrl('http://localhost:8000/'), filename='file.png', directory='courses') estimated_time='1 week' created_by_user=UserSchema(id='user-id', email='user@gmail.com', last_name='Bond', first_name='Zara', middle_name='Alise')
+{'id': 'course-id', 'title': 'Playwright', 'max_score': 100, 'min_score': 10, 'description': 'Playwright', 'preview_file': {'id': 'file-id', 'url': HttpUrl('http://localhost:8000/'), 'filename': 'file.png', 'directory': 'courses'}, 'estimated_time': '1 week', 'created_by_user': {'id': 'user-id', 'email': 'user@gmail.com', 'last_name': 'Bond', 'first_name': 'Zara', 'middle_name': 'Alise'}}
+{'id': 'course-id', 'title': 'Playwright', 'maxScore': 100, 'minScore': 10, 'description': 'Playwright', 'previewFile': {'id': 'file-id', 'url': HttpUrl('http://localhost:8000/'), 'filename': 'file.png', 'directory': 'courses'}, 'estimatedTime': '1 week', 'createdByUser': {'id': 'user-id', 'email': 'user@gmail.com', 'lastName': 'Bond', 'firstName': 'Zara', 'middleName': 'Alise'}}
+Course JSON model: id='course-id' title='Playwright' max_score=100 min_score=10 description='Playwright' preview_file=FileSchema(id='file-id', url=HttpUrl('http://localhost:8000/'), filename='file.png', directory='courses') estimated_time='1 week' created_by_user=UserSchema(id='user-id', email='user@gmail.com', last_name='Bond', first_name='Zara', middle_name='Alise')
+1 validation error for FileSchema
+url
+  Input should be a valid URL, relative URL without a base [type=url_parsing, input_value='localhost', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.10/v/url_parsing
+[{'type': 'url_parsing', 'loc': ('url',), 'msg': 'Input should be a valid URL, relative URL without a base', 'input': 'localhost', 'ctx': {'error': 'relative URL without a base'}, 'url': 'https://errors.pydantic.dev/2.10/v/url_parsing'}]
+Итоги
+В этом уроке мы подробно разобрали основные возможности Pydantic и научились работать с валидацией данных. Вот основные моменты, которые мы рассмотрели:
+
+Основные принципы Pydantic
+
+Использование BaseModel для создания схем данных.
+Валидация входных данных на основе аннотаций типов.
+Преобразование типов и автоматическая нормализация данных.
+Field и alias
+
+Как использовать Field для задания alias (альтернативных названий полей).
+Возможность указания значений по умолчанию и использования default_factory.
+Вложенные модели
+
+Использование одной Pydantic-модели внутри другой (пример с FileSchema и UserSchema в CourseSchema).
+Валидация встроенных типов
+
+Использование EmailStr, HttpUrl и других встроенных типов для автоматической проверки значений.
+Пример с FileSchema, где HttpUrl не позволяет передавать некорректные URL.
+Способы инициализации моделей
+
+Передача аргументов в конструктор.
+Использование словаря (dict).
+Разбор JSON (model_validate_json).
+Обработка ошибок валидации
+
+Как Pydantic сообщает об ошибках.
+Использование ValidationError и error.errors() для детального разбора ошибок.
+Теперь у вас есть отличная база для работы с Pydantic в более сложных сценариях, включая API-клиенты, обработку данных из JSON, интеграцию с базами данных и другие задачи.

@@ -1,0 +1,170 @@
+Применяем Pydantic в FilesClient
+Теперь добавим поддержку Pydantic-моделей в FilesClient, аналогично тому, как это было сделано для AuthenticationClient.
+
+1. Создание файла files_schema.py
+В папке clients/files создаем новый файл files_schema.py
+
+.
+└── autotests-api/
+    └── clients/
+        └── files/
+            └── files_schema.py
+2. Создание моделей
+Опишем модели для работы с API /api/v1/files:
+
+from pydantic import BaseModel, HttpUrl
+
+
+class FileSchema(BaseModel):
+    """
+    Описание структуры файла.
+    """
+    id: str
+    url: HttpUrl
+    filename: str
+    directory: str
+
+
+class CreateFileRequestSchema(BaseModel):
+    """
+    Описание структуры запроса на создание файла.
+    """
+    filename: str
+    directory: str
+    upload_file: str
+
+
+class CreateFileResponseSchema(BaseModel):
+    """
+    Описание структуры ответа создания файла.
+    """
+    file: FileSchema
+Важно! Поле upload_file: str — это дополнительное поле, содержащее путь к файлу. Для него не добавляем Field(alias="..."), так как эндпоинт /api/v1/files принимает этот параметр именно как upload_file.
+
+3. Адаптируем FilesClient
+Теперь давайте применим созданные pydantic модели в FilesClient:
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.files.files_schema import CreateFileRequestSchema, CreateFileResponseSchema
+from clients.private_http_builder import AuthenticationUserSchema, get_private_http_client
+
+
+class FilesClient(APIClient):
+    """
+    Клиент для работы с /api/v1/files
+    """
+
+    def get_file_api(self, file_id: str) -> Response:
+        """
+        Метод получения файла.
+
+        :param file_id: Идентификатор файла.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/files/{file_id}")
+
+    def create_file_api(self, request: CreateFileRequestSchema) -> Response:
+        """
+        Метод создания файла.
+
+        :param request: Словарь с filename, directory, upload_file.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post(
+            "/api/v1/files",
+            data=request.model_dump(by_alias=True, exclude={'upload_file'}),
+            files={"upload_file": open(request.upload_file, 'rb')}
+        )
+
+    def delete_file_api(self, file_id: str) -> Response:
+        """
+        Метод удаления файла.
+
+        :param file_id: Идентификатор файла.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/files/{file_id}")
+
+    def create_file(self, request: CreateFileRequestSchema) -> CreateFileResponseSchema:
+        response = self.create_file_api(request)
+        return CreateFileResponseSchema.model_validate_json(response.text)
+
+
+def get_files_client(user: AuthenticationUserSchema) -> FilesClient:
+    """
+    Функция создаёт экземпляр FilesClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию FilesClient.
+    """
+    return FilesClient(client=get_private_http_client(user))
+Что изменилось?
+Импортируем новые Pydantic-модели
+from clients.files.files_schema import CreateFileRequestSchema, CreateFileResponseSchema
+Заменяем TypedDict-модели на Pydantic. Теперь работаем с Pydantic-моделями вместо dict.
+Используем .model_dump() вместо json=request
+data=request.model_dump(by_alias=True, exclude={'upload_file'})
+by_alias=True — если в Pydantic-модели заданы алиасы, используем их
+
+exclude={'upload_file'} — исключаем upload_file, так как оно передается отдельно
+
+Передаем файл отдельно
+files={"upload_file": open(request.upload_file, 'rb')}
+Файл загружается как отдельный параметр, а не через form data.
+
+5. Адаптируем скрипты
+Теперь нам необходимо адаптировать скрипты работы с API-клиентами:
+
+api_client_create_course.py
+api_client_create_exercise.py
+Рассмотрим на примере скрипта api_client_create_course.py, как адаптировать его под использование новых Pydantic-моделей для работы с файлами:
+
+from clients.courses.courses_client import get_courses_client, CreateCourseRequestDict
+from clients.files.files_client import get_files_client
+# Вместо CreateFileRequestDict импортируем CreateFileRequestSchema
+from clients.files.files_schema import CreateFileRequestSchema
+from clients.private_http_builder import AuthenticationUserSchema
+from clients.users.public_users_client import get_public_users_client
+from clients.users.users_schema import CreateUserRequestSchema
+from tools.fakers import get_random_email
+
+public_users_client = get_public_users_client()
+
+create_user_request = CreateUserRequestSchema(
+    email=get_random_email(),
+    password="string",
+    last_name="string",
+    first_name="string",
+    middle_name="string"
+)
+create_user_response = public_users_client.create_user(create_user_request)
+
+authentication_user = AuthenticationUserSchema(
+    email=create_user_request.email,
+    password=create_user_request.password
+)
+files_client = get_files_client(authentication_user)
+courses_client = get_courses_client(authentication_user)
+
+# Вместо CreateFileRequestDict используем CreateFileRequestSchema
+create_file_request = CreateFileRequestSchema(
+    filename="image.png",
+    directory="courses",
+    upload_file="./testdata/files/image.png"
+)
+create_file_response = files_client.create_file(create_file_request)
+print('Create file data:', create_file_response)
+
+create_course_request = CreateCourseRequestDict(
+    title="Python",
+    maxScore=100,
+    minScore=10,
+    description="Python API course",
+    estimatedTime="2 weeks",
+    previewFileId=create_file_response.file.id,  # Используем атрибуты место ключей
+    createdByUserId=create_user_response.user.id  # Используем атрибуты место ключей
+)
+create_course_response = courses_client.create_course(create_course_request)
+print('Create course data:', create_course_response)
+Важно! По аналогии необходимо проделать то же самое со всеми скриптами, где используется работа с файлами. Список скриптов приведен выше.
