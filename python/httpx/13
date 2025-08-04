@@ -1,0 +1,208 @@
+Реализуем public builder для HTTP-клиента
+Ссылки:
+
+Порождающие паттерны проектирования
+Паттерн проектирования Builder
+Введение
+В этом уроке мы будем практиковаться с использованием API-клиентов и выполнением запросов к API через них. Однако прежде чем мы сможем это сделать, необходимо разобраться, как правильно инициализировать клиент.
+
+Зачем это нужно? Все наши API-клиенты наследуются от APIClient, а он в своем конструкторе требует объект httpx.Client:
+
+class APIClient:
+    def __init__(self, client: Client):
+        self.client = client
+Это означает, что перед использованием любого API-клиента, сначала нужно создать httpx.Client, передать в него все необходимые настройки (таймауты, base_url и заголовки), а затем передать этот объект в APIClient.
+
+На первый взгляд это может показаться сложным, но на практике всё довольно просто.
+
+Что такое паттерн Builder?
+Паттерн Builder (Строитель) – это порождающий шаблон проектирования, который используется для пошагового создания сложных объектов. Вместо того чтобы создавать объект сразу с большим количеством аргументов в конструкторе, мы разделяем процесс создания на последовательные шаги.
+
+Основные принципы паттерна Builder:
+
+Отделение процесса создания объекта от его представления – клиентский код не должен заботиться о том, как именно создается объект.
+Гибкость в конфигурации – можно динамически задавать параметры объекта, не перегружая конструктор.
+Читаемость кода – создание объекта становится интуитивно понятным и структурированным.
+Пример использования Builder:
+
+class Car:
+    def __init__(self, engine, wheels, color):
+        self.engine = engine
+        self.wheels = wheels
+        self.color = color
+
+class CarBuilder:
+    def __init__(self):
+        self.engine = None
+        self.wheels = 4
+        self.color = "white"
+
+    def set_engine(self, engine):
+        self.engine = engine
+        return self
+
+    def set_color(self, color):
+        self.color = color
+        return self
+
+    def build(self):
+        return Car(self.engine, self.wheels, self.color)
+
+# Использование:
+builder = CarBuilder()
+car = builder.set_engine("V8").set_color("red").build()
+Этот принцип мы будем применять к созданию httpx.Client.
+
+Задача
+Нам нужно реализовать два билдера для создания httpx.Client:
+
+Публичный клиент – используется для запросов, которые не требуют авторизации (например, логин, обновление токена, регистрация пользователя).
+Приватный клиент – используется для запросов, которые требуют авторизации (здесь необходимо устанавливать заголовки с токеном доступа).
+1. Создание файла public_http_builder.py
+В папке clients создаем файл public_http_builder.py:
+
+.
+└── autotests-api/
+    └── clients/
+        ├── __init__.py
+        ├── api_client.py
+        └── public_http_builder.py
+2. Создание builder
+Создадим функцию для инициализации публичного HTTP-клиента:
+
+from httpx import Client
+
+
+def get_public_http_client() -> Client:
+    """
+    Функция создаёт экземпляр httpx.Client с базовыми настройками.
+
+    :return: Готовый к использованию объект httpx.Client.
+    """
+    return Client(timeout=100, base_url="http://localhost:8000")
+Это весь код, который нам нужен для инициализации публичного httpx.Client. Мы указываем таймаут и базовый URL, относительно которого будут выполняться все запросы.
+
+Здесь используется паттерн Builder, поскольку функция подготавливает клиент с нужными настройками и возвращает уже готовый объект.
+
+3. Используем builder
+Теперь используем get_public_http_client() для инициализации API-клиентов, которые не требуют авторизации. К таким клиентам относятся:
+
+AuthenticationClient (авторизация, обновление токена)
+PublicUsersClient (создание пользователя)
+3.1. Создание AuthenticationClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.public_http_builder import get_public_http_client. # Импортируем builder
+
+
+class LoginRequestDict(TypedDict):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+class RefreshRequestDict(TypedDict):
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    refreshToken: str
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    def login_api(self, request: LoginRequestDict) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/login", json=request)
+
+    def refresh_api(self, request: RefreshRequestDict) -> Response:
+        """
+        Метод обновляет токен авторизации.
+
+        :param request: Словарь с refreshToken.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/refresh", json=request)
+
+
+# Добавляем builder для AuthenticationClient
+def get_authentication_client() -> AuthenticationClient:
+    """
+    Функция создаёт экземпляр AuthenticationClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию AuthenticationClient.
+    """
+    return AuthenticationClient(client=get_public_http_client())
+Как это работает?
+
+Импортируем get_public_http_client() и используем его для создания HTTP-клиента.
+Передаем этот клиент в AuthenticationClient.
+Теперь, вызывая get_authentication_client(), мы получаем полностью готовый к использованию API-клиент.
+Почему это важно?
+
+Код становится чище: при инициализации тестов не нужно вручную создавать httpx.Client.
+Гибкость: если в будущем потребуется изменить таймаут, заголовки или другие настройки, это можно сделать в одном месте (в get_public_http_client()), и изменения автоматически применятся ко всем API-клиентам.
+3.2. Создание PublicUsersClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.public_http_builder import get_public_http_client
+
+
+class CreateUserRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание пользователя.
+    """
+    email: str
+    password: str
+    lastName: str
+    firstName: str
+    middleName: str
+
+
+class PublicUsersClient(APIClient):
+    """
+    Клиент для работы с /api/v1/users
+    """
+
+    def create_user_api(self, request: CreateUserRequestDict) -> Response:
+        """
+        Метод создает пользователя.
+
+        :param request: Словарь с email, password, lastName, firstName, middleName.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/users", json=request)
+
+
+# Добавляем builder для PublicUsersClient
+def get_public_users_client() -> PublicUsersClient:
+    """
+    Функция создаёт экземпляр PublicUsersClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию PublicUsersClient.
+    """
+    return PublicUsersClient(client=get_public_http_client())
+Как это работает?
+Аналогично AuthenticationClient, здесь мы используем get_public_http_client(), но уже для PublicUsersClient.
+Теперь в тестах достаточно вызвать get_public_users_client(), чтобы получить готовый API-клиент.
+ 
+
+Итог
+Мы реализовали паттерн Builder для создания HTTP-клиентов, которые не требуют авторизации. Теперь инициализация клиентов автоматизирована, код стал чище, а изменения легко вносить в одном месте.
+
+Дальше, по аналогии, можно создать builder для клиентов, которым требуется авторизация, добавив в httpx.Client нужные заголовки (Authorization).
