@@ -1,0 +1,166 @@
+Лучшие практики работы с моделями Pydantic
+Перед тем как работать с моделями Pydantic, важно понимать, как правильно их называть и структурировать, чтобы код оставался читабельным, поддерживаемым и масштабируемым.
+
+Лучшие практики нейминга моделей
+Разбивка JSON на атомарные части
+Рассмотрим JSON-структуру, описывающую ответ API на GET /api/v1/courses/{course_id}:
+
+{
+  "course": {
+    "id": "string",
+    "title": "string",
+    "maxScore": 0,
+    "minScore": 0,
+    "description": "string",
+    "previewFile": {
+      "id": "string",
+      "filename": "string",
+      "directory": "string",
+      "url": "https://example.com/"
+    },
+    "estimatedTime": "string",
+    "createdByUser": {
+      "id": "string",
+      "email": "user@example.com",
+      "lastName": "string",
+      "firstName": "string",
+      "middleName": "string"
+    }
+  }
+}
+При проектировании моделей нужно идти снизу вверх — сначала выделить вложенные сущности, а затем объединить их в более сложные структуры.
+
+1. Использование суффикса Schema
+Рекомендуется добавлять Schema в названия моделей, например, UserSchema, CourseSchema.
+Это помогает различать модели Pydantic и другие сущности, например, модели базы данных в SQLAlchemy.
+
+Пример проблемы:
+Если назвать модель User, то позже в коде может появиться User из SQLAlchemy, и их будет сложно различать.
+
+Правильный вариант:
+
+from pydantic import BaseModel
+
+class UserSchema(BaseModel):
+    id: str
+    email: str
+    last_name: str
+    first_name: str
+    middle_name: str
+2. Название должно отражать суть модели
+Не стоит включать в названия деталей протокола (POST, GET) или ненужных уточнений.
+Неправильные примеры:
+
+POSTRequestSchema
+POSTUserRequestSchema
+Лучше использовать семантические названия, например:
+
+CreateUserRequestSchema (создание пользователя)
+GetUserResponseSchema (ответ API с пользователем)
+UpdateCourseRequestSchema (обновление курса)
+3. Разделение кратких и полных моделей
+Если есть разные представления одной сущности (краткое и полное), это стоит отразить в названии:
+
+class ShortUserSchema(BaseModel):
+    id: str
+    email: str
+
+class FullUserSchema(ShortUserSchema):
+    last_name: str
+    first_name: str
+    middle_name: str
+Теперь в API можно использовать ShortUserSchema в списках (/users), а FullUserSchema в детальных ответах (/users/{id}).
+
+4. Универсальные названия моделей
+Рассмотрим previewFile:
+
+"previewFile": {
+  "id": "string",
+  "filename": "string",
+  "directory": "string",
+  "url": "https://example.com/"
+}
+Мы видим, что это описание файла. Правильнее назвать модель FileSchema, а не PreviewFileSchema, так как файлы могут использоваться не только в курсах.
+
+class FileSchema(BaseModel):
+    id: str
+    filename: str
+    directory: str
+    url: str
+5. Обобщение моделей
+Данные о пользователе:
+
+"createdByUser": {
+  "id": "string",
+  "email": "user@example.com",
+  "lastName": "string",
+  "firstName": "string",
+  "middleName": "string"
+}
+Это явно UserSchema, и его можно использовать в разных частях API.
+
+6. Главная сущность
+Главная модель CourseSchema использует FileSchema и UserSchema:
+
+class CourseSchema(BaseModel):
+    id: str
+    title: str
+    max_score: int
+    min_score: int
+    description: str
+    preview_file: FileSchema
+    estimated_time: str
+    created_by_user: UserSchema
+А в ответе API лучше использовать GetCourseResponseSchema, указывая, что это именно ответ API:
+
+class GetCourseResponseSchema(BaseModel):
+    course: CourseSchema
+Лучшие практики организации моделей
+1. Размещение моделей в отдельных файлах
+Модели не должны храниться в одном файле с бизнес-логикой или клиентами API.
+
+Пример: Если у вас есть courses_client.py, то создайте рядом courses_schema.py, а не кладите модели внутрь API-клиента.
+
+.
+└── courses/
+    ├── courses_client.py
+    └── courses_schema.py  # <- здесь храним модели Pydantic
+2. Логика валидации, а не бизнес-логика
+Модели должны использоваться только для валидации данных и структуризации, но не содержать бизнес-логику.
+
+Неправильно (модель делает запрос к API):
+
+class CourseSchema(BaseModel):
+    id: str
+
+    def get_course_details(self):
+        response = requests.get(f"https://example.com/courses/{self.id}")
+        return response.json()
+Правильно:
+
+class CourseSchema(BaseModel):
+    id: str
+А сам запрос выполняется в API-клиенте.
+
+3. Переиспользование моделей через наследование
+Если у нас есть две модели пользователя (краткая и полная), можно использовать наследование:
+
+class ShortUserSchema(BaseModel):
+    id: str
+    email: str
+
+class ExtendedUserSchema(ShortUserSchema):
+    last_name: str
+    first_name: str
+    middle_name: str
+Таким образом, ExtendedUserSchema включает в себя ShortUserSchema, а нам не нужно дублировать код.
+
+Заключение
+Используйте суффикс Schema, чтобы избежать конфликтов.
+Давайте понятные названия моделям, отражающие их смысл.
+Разделяйте краткие и полные версии моделей (ShortUserSchema, ExtendedUserSchema).
+Не привязывайтесь к API-методу в названии модели, используйте CreateUserRequestSchema, GetUserResponseSchema.
+Разбивайте модели по файлам (courses_schema.py, users_schema.py).
+Модели отвечают только за валидацию, а не за логику API-запросов.
+Используйте наследование, чтобы избегать дублирования кода.
+Следование этим принципам сделает ваш код чистым, поддерживаемым и понятным даже спустя годы разработки.
