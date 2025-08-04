@@ -1,0 +1,263 @@
+Генерация JSON schema на основе моделей Pydantic
+Ссылки:
+
+Генерация JSON schema в pydantic
+JSON schema валидация различных форматов данных
+Как я уже не раз говорил, Pydantic — это мощный инструмент, и сейчас мы еще раз в этом убедимся. В этом шаге мы рассмотрим, как на основе моделей Pydantic легко можно сгенерировать JSON схему, а затем сравнить ее с фактическими данными, которые нам пришли через API.
+
+В контексте автотестов использование валидации JSON схемы оказывается крайне полезным. Благодаря готовым моделям Pydantic мы можем зафиксировать контракт с API, а затем выполнить запрос к API, получив ответ в формате JSON. После этого на основе модели Pydantic сгенерируем JSON схему и сверим ее с тем JSON, который вернуло нам API. Этот процесс поможет улучшить качество наших автотестов.
+
+Пример:
+
+У нас есть модель Pydantic в автотестах, которая описывает структуру данных.
+Мы запускаем автотесты, и все работает корректно.
+В какой-то момент разработчик случайно меняет тип данных на сервере, например, меняет тип с int на string, но не замечает этого.
+В это время наши автотесты продолжают использовать старую модель Pydantic, которая не была изменена.
+Так как мы генерируем схему на основе модели Pydantic, мы можем использовать её для валидации полученного от API JSON. Если тип данных изменился (например, с int на string), наша валидация сгенерированной схемы не пройдет, и тест упадет. Это дает нам глобальный контроль над контрактом взаимодействия с API. Мы не только тестируем значения, которые возвращает API, но и контролируем сам контракт — структуру и типы данных.
+
+Преимущества:
+
+Контрактное тестирование: Мы не просто проверяем, что API возвращает корректные данные, но и удостоверяемся, что структура этих данных осталась неизменной.
+Автоматизация: Генерация схемы на основе моделей Pydantic помогает автоматизировать процесс тестирования, исключая необходимость вручную поддерживать и обновлять схемы.
+Снижение риска ошибок: Если произошли неожиданные изменения в API (например, изменения типов данных), тесты сгенерируют ошибку, предотвращая использование некорректных данных в дальнейшем.
+Таким образом, использование Pydantic и валидации JSON схемы позволяет значительно повысить стабильность и качество автоматических тестов, обеспечивая дополнительную защиту от изменений в контракте API, которые могут остаться незамеченными при ручном тестировании.
+
+1. Создадим файл pydantic_json_schema_create_user.py
+В корне проекта autotests-api создадим файл pydantic_json_schema_create_user.py.
+
+.
+└── autotests-api/
+    └── pydantic_json_schema_create_user.py
+2. Получаем JSON-схему из Pydantic-модели
+Теперь давайте посмотрим, как можно автоматически сгенерировать JSON-схему на основе Pydantic-модели.
+
+Шаг 1: Добавляем код для генерации схемы
+В файл pydantic_json_schema_create_user.py добавим следующий код:
+
+from clients.authentication.authentication_schema import TokenSchema
+
+print(TokenSchema.model_json_schema())
+Шаг 2: Запускаем скрипт
+Выполним команду:
+
+python -m pydantic_json_schema_create_user
+Шаг 3: Разбираем результат
+После выполнения скрипта в консоли отобразится следующая JSON-schema:
+
+{
+  "description": "Описание структуры аутентификационных токенов.",
+  "properties": {
+    "tokenType": {
+      "title": "Tokentype",
+      "type": "string"
+    },
+    "accessToken": {
+      "title": "Accesstoken",
+      "type": "string"
+    },
+    "refreshToken": {
+      "title": "Refreshtoken",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tokenType",
+    "accessToken",
+    "refreshToken"
+  ],
+  "title": "TokenSchema",
+  "type": "object"
+}
+Разбираем, что произошло
+Pydantic автоматически создал JSON-схему для нашей модели TokenSchema.
+Это означает, что нам не нужно вручную описывать JSON-схему.
+Pydantic сам определил типы данных, обязательные поля и структуру объекта.
+properties — это описание полей модели:
+Указаны типы данных (type: string для строковых значений).
+title — это название поля, которое может использоваться в документации.
+required — список обязательных полей.
+Если поле не имеет значения по умолчанию, оно автоматически попадает в этот список.
+Название схемы (title: "TokenSchema") и описание (description) взяты из самой Pydantic-модели.
+Почему это полезно?
+Автоматизация — не нужно вручную писать JSON-схему.
+Соответствие модели — JSON-schema всегда точно отражает структуру Pydantic-модели.
+Валидация данных — можно проверять JSON-объекты на соответствие схеме перед обработкой.
+Вывод
+С помощью model_json_schema() можно легко и быстро получать JSON-схему Pydantic-модели. Это мощный инструмент, который упрощает работу с API, документацией и валидацией данных.
+
+3. Валидируем ответ от API
+Теперь давайте попробуем выполнить запрос на создание пользователя и проверить, соответствует ли ответ API ожидаемой JSON-схеме.
+
+Шаг 1: Добавляем код в pydantic_json_schema_create_user.py
+import jsonschema
+
+from clients.users.public_users_client import get_public_users_client
+from clients.users.users_schema import CreateUserRequestSchema, CreateUserResponseSchema
+from tools.fakers import get_random_email
+
+public_users_client = get_public_users_client()
+
+create_user_request = CreateUserRequestSchema(
+    email=get_random_email(),
+    password="string",
+    last_name="string",
+    first_name="string",
+    middle_name="string"
+)
+create_user_response = public_users_client.create_user_api(create_user_request)
+# Получаем JSON-схему из Pydantic-модели ответа
+create_user_response_schema = CreateUserResponseSchema.model_json_schema()
+
+# Проверяем, что JSON-ответ от API соответствует ожидаемой JSON-схеме
+jsonschema.validate(instance=create_user_response.json(), schema=create_user_response_schema)
+Разбираем код
+
+Генерируем JSON-схему для ожидаемого ответа (CreateUserResponseSchema.model_json_schema()).
+Pydantic автоматически создает схему на основе модели CreateUserResponseSchema.
+Проверяем соответствие JSON-ответа схеме с помощью jsonschema.validate().
+instance=create_user_response.json() — это JSON, который вернул API.
+schema=create_user_response_schema — это ожидаемая JSON-schema.
+Если структура ответа не соответствует ожидаемой схеме, будет выброшено исключение jsonschema.exceptions.ValidationError.
+Шаг 2: Разбираем ошибку валидации
+Если в ответе не хватает какого-то обязательного поля, валидация выдаст ошибку:
+
+jsonschema.exceptions.ValidationError: 'lastName' is a required property
+
+Failed validating 'required' in schema['properties']['user']:
+    {'description': 'Описание структуры пользователя.',
+     'properties': {'id': {'title': 'Id', 'type': 'string'},
+                    'email': {'format': 'email',
+                              'title': 'Email',
+                              'type': 'string'},
+                    'lastName': {'title': 'Lastname', 'type': 'string'},
+                    'firstName': {'title': 'Firstname', 'type': 'string'},
+                    'middleName': {'title': 'Middlename',
+                                   'type': 'string'}},
+     'required': ['id', 'email', 'lastName', 'firstName', 'middleName'],
+     'title': 'UserSchema',
+     'type': 'object'}
+
+On instance['user']:
+    {'id': 'c7e0ed9a-7e82-4f09-8f32-c15f2e3668b8',
+     'email': 'test.1741184505.504808@example.com',
+     'firstName': 'string',
+     'middleName': 'string'}
+Что означает эта ошибка?
+lastName обязательное поле, но в JSON-ответе его нет.
+Ошибка произошла при проверке схемы в разделе required.
+Полный JSON-schema ожидала структуру:
+{
+  "description": "Описание структуры пользователя.",
+  "properties": {
+    "id": { "title": "Id", "type": "string" },
+    "email": { "format": "email", "title": "Email", "type": "string" },
+    "lastName": { "title": "Lastname", "type": "string" },
+    "firstName": { "title": "Firstname", "type": "string" },
+    "middleName": { "title": "Middlename", "type": "string" }
+  },
+  "required": ["id", "email", "lastName", "firstName", "middleName"],
+  "title": "UserSchema",
+  "type": "object"
+}
+Но API вернул:
+
+{
+  "id": "c7e0ed9a-7e82-4f09-8f32-c15f2e3668b8",
+  "email": "test.1741184505.504808@example.com",
+  "firstName": "string",
+  "middleName": "string"
+}
+Почему произошла ошибка?
+В ответе нет поля "lastName", хотя оно обязательно в схеме.
+Это может быть ошибка в API или изменение контракта, которое нужно учесть в тестах.
+Зачем нам эта проверка?
+Автоматическая валидация JSON-ответов — не нужно проверять каждый ключ вручную.
+Обнаружение ошибок API — если в ответе API пропадает поле, тест сразу же это выявит.
+Гибкость — Pydantic позволяет легко обновлять схемы и адаптировать их под изменения API.
+Использование в автотестах — это важная часть автоматизированного тестирования API.
+Вывод
+С помощью Pydantic и jsonschema.validate() можно гарантировать, что API возвращает данные в правильном формате. Если в API что-то изменится, тест сразу же покажет ошибку, что упрощает поддержку контрактов API.
+
+4. Вынесение валидации схемы в отдельную функцию
+Сейчас валидация схемы у нас реализована на уровне библиотеки jsonschema, но генерация схемы происходит через Pydantic-модель.
+
+Зачем выносить валидацию в отдельную функцию?
+Единый интерфейс для работы с валидацией в проекте.
+Гибкость — если в будущем появится другая библиотека для валидации, заменим её в одном месте.
+Централизованное управление — можно добавить логирование, Allure-отчетность, дополнительную обработку ошибок и не менять тесты.
+Такой подход называется "Обертка над библиотекой" (Wrapper Pattern), а еще его можно рассматривать как "Фасад" (Facade Pattern).
+
+Шаг 1: Создаем файл schema.py
+Добавляем новую папку assertions, в которой будет находиться логика проверок:
+
+.
+└── autotests-api/
+    └── tools/
+        └── assertions/
+            ├── __init__.py
+            └── schema.py
+Шаг 2: Добавляем функцию validate_json_schema
+Файл /tools/assertions/schema.py:
+
+from typing import Any
+
+from jsonschema import validate
+from jsonschema.validators import Draft202012Validator
+
+
+def validate_json_schema(instance: Any, schema: dict) -> None:
+    """
+    Проверяет, соответствует ли JSON-объект (instance) заданной JSON-схеме (schema).
+
+    :param instance: JSON-данные, которые нужно проверить.
+    :param schema: Ожидаемая JSON-schema.
+    :raises jsonschema.exceptions.ValidationError: Если instance не соответствует schema.
+    """
+    validate(
+        schema=schema,
+        instance=instance,
+        format_checker=Draft202012Validator.FORMAT_CHECKER,
+    )
+Разбираем код
+
+Функция validate_json_schema принимает два аргумента:
+instance: dict — JSON-объект, который возвращает API.
+schema: dict — JSON-schema, описывающая ожидаемую структуру.
+Вызывает validate() для проверки соответствия.
+Если instance не соответствует schema, выбрасывается jsonschema.exceptions.ValidationError.
+Это позволит тестам сразу выявлять ошибки в ответах API.
+format_checker=Draft202012Validator.FORMAT_CHECKER позволяет валидировать строки на соответствие формату, например, проверку email или URL.
+Если в ответе будет некорректное значение, например, неправильный формат email, это вызовет ошибку валидации.
+Что нам это дает?
+Если захотим заменить jsonschema на другую библиотеку (например, pydantic или fastjsonschema), просто обновим код в одном месте.
+Можно легко добавить логирование или интеграцию с Allure (например, оборачивать в allure.step).
+Все автотесты в будущем смогут использовать единый интерфейс валидации, а значит, код станет чище и проще в поддержке.
+5. Используем функцию validate_json_schema с Pydantic
+Теперь давайте используем функцию validate_json_schema в файле pydantic_json_schema_create_user.py. Финальный скрипт будет выглядеть следующим образом:
+
+from clients.users.public_users_client import get_public_users_client
+from clients.users.users_schema import CreateUserRequestSchema, CreateUserResponseSchema
+# Добавили импорт функции validate_json_schema
+from tools.assertions.schema import validate_json_schema
+from tools.fakers import get_random_email
+
+public_users_client = get_public_users_client()
+
+create_user_request = CreateUserRequestSchema(
+    email=get_random_email(),
+    password="string",
+    last_name="string",
+    first_name="string",
+    middle_name="string"
+)
+create_user_response = public_users_client.create_user_api(create_user_request)
+# Получаем JSON схему из модели ответа
+create_user_response_schema = CreateUserResponseSchema.model_json_schema()
+
+# Проверяем, что JSON ответ от API соответствует ожидаемой JSON схеме
+validate_json_schema(instance=create_user_response.json(), schema=create_user_response_schema)
+
+Что изменилось и почему это важно?
+Вынесли валидацию в отдельную функцию — теперь вся логика валидации JSON-схем сосредоточена в одном месте (tools.assertions.schema.validate_json_schema).
+Не изменили принцип работы — мы по-прежнему используем jsonschema для валидации ответа API.
+Код стал чище — если в будущем нам понадобится поменять библиотеку или добавить логирование, мы сделаем это в одном месте, а не по всему проекту.
