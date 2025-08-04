@@ -1,0 +1,138 @@
+Практика реализации API клиентов: /api/v1/files. Часть 1—  Загрузка файла
+Ссылки:
+
+FormData
+Перед тем как приступить к реализации клиента для работы с API /api/v1/files, необходимо разобраться с процессом загрузки файлов. Это важно, так как метод POST /api/v1/files принимает на вход файл, который будет загружен на сервер.
+
+1. Создаем файл httpx_create_file.py
+В корне проекта autotests-api создадим новый файл httpx_create_file.py:
+
+.
+└── autotests-api/
+    └── httpx_creare_file.py
+2. Добавляем тестовый файл в проект
+Перед загрузкой файла его нужно сначала подготовить. Создадим в проекте папку testdata/files и положим в нее изображение image.png:
+
+.
+└── autotests-api/
+    ├── testdata/
+    │   └── files/
+    │       └── image.png
+    └── httpx_creare_file.py
+Файл image.png может быть любым изображением в формате PNG. Вы можете:
+
+скачать любое изображение из интернета,
+использовать любое изображение с вашего компьютера.
+Главное, чтобы файл находился по указанному пути.
+
+3. Добавляем код загрузки файла
+Теперь разберем, какие данные необходимо отправить в POST /api/v1/files, чтобы загрузить файл.
+
+Открыв документацию Swagger, можно увидеть, что метод POST /api/v1/files принимает три параметра в теле запроса:
+
+filename — имя загружаемого файла (например, image.png). Этот параметр определяет, под каким именем файл будет доступен на сервере.
+directory — папка, в которую будет загружен файл (например, courses). Это влияет на конечный URL файла.
+upload_file — сам файл в бинарном представлении.
+
+
+Что такое бинарное представление файла?
+Компьютеры хранят информацию в виде двоичных данных (0 и 1). Когда мы передаем файл, его содержимое (изображение, текстовый документ и т. д.) преобразуется в поток байтов — это и есть бинарное представление.
+
+В Python файл можно открыть в бинарном режиме с помощью open('file.png', 'rb'), где:
+
+r — режим чтения (read),
+b — бинарный режим (binary).
+Что такое FormData?
+В большинстве API данные отправляются в формате JSON. Однако для загрузки файлов используется формат multipart/form-data.
+
+Это специальный формат, который позволяет отправлять не только текстовые данные, но и файлы.
+Он работает так:
+
+Формируется набор полей (filename, directory и сам файл).
+Данные разбиваются на части (multipart) и упаковываются в FormData.
+Файл передается в потоке байтов, а API сервер обрабатывает его как отдельный вложенный объект.
+4. Напишем код загрузки файла
+Перед тем как загрузить файл, нам необходимо:
+
+Создать нового пользователя.
+Авторизоваться, получив токен доступа.
+Использовать этот токен для загрузки файла.
+Код загрузки файла:
+
+import httpx
+
+from tools.fakers import get_random_email
+
+# Создаем пользователя
+create_user_payload = {
+    "email": get_random_email(),
+    "password": "string",
+    "lastName": "string",
+    "firstName": "string",
+    "middleName": "string"
+}
+create_user_response = httpx.post("http://localhost:8000/api/v1/users", json=create_user_payload)
+create_user_response_data = create_user_response.json()
+print('Create user data:', create_user_response_data)
+
+# Проходим аутентификацию
+login_payload = {
+    "email": create_user_payload['email'],
+    "password": create_user_payload['password']
+}
+login_response = httpx.post("http://localhost:8000/api/v1/authentication/login", json=login_payload)
+login_response_data = login_response.json()
+print('Login data:', login_response_data)
+
+# Выполняем загрузку файла
+create_file_headers = {
+    "Authorization": f"Bearer {login_response_data['token']['accessToken']}"
+}
+create_file_response = httpx.post(
+    "http://localhost:8000/api/v1/files",
+    data={"filename": "image.png", "directory": "courses"},
+    files={"upload_file": open('./testdata/files/image.png', 'rb')},
+    headers=create_file_headers
+)
+create_file_response_data = create_file_response.json()
+print('Create file data:', create_file_response_data)
+5. Разбираем код загрузки файла
+Рассмотрим этот фрагмент кода:
+
+create_file_response = httpx.post(
+    "http://localhost:8000/api/v1/files",
+    data={"filename": "image.png", "directory": "courses"},
+    files={"upload_file": open('./testdata/files/image.png', 'rb')},
+    headers=create_file_headers
+)
+Что здесь происходит?
+
+httpx.post — отправляет POST-запрос на сервер.
+URL — "http://localhost:8000/api/v1/files" указывает, куда отправляется запрос.
+data={"filename": "image.png", "directory": "courses"}
+Это параметры запроса, передаваемые в FormData (не в JSON!).
+filename: Имя файла.
+directory: Папка, в которую загружается файл.
+files={"upload_file": open('./testdata/files/image.png', 'rb')}
+Здесь файл открывается в бинарном ('rb') режиме и передается API.
+Ключ upload_file соответствует названию параметра в Swagger.
+headers=create_file_headers
+Включает заголовок Authorization, который содержит Bearer токен для аутентификации.
+6. Запуск скрипта httpx_create_file.py
+Теперь запустим скрипт и посмотрим, как это работает:
+
+python -m httpx_create_file
+Если все выполнится успешно, вы увидите вывод в консоли:
+
+Create user data: {'user': {'id': 'f76d6342-e5fc-45db-9816-8f5501eb170a', 'email': 'test.1740845894.8600352@example.com', 'lastName': 'string', 'firstName': 'string', 'middleName': 'string'}}
+Login data: {'token': {'tokenType': 'bearer', 'accessToken': 'e...0', 'refreshToken': 'ey...w'}}
+Create file data: {'file': {'id': '5819b498-0063-4068-ab05-f53f674748f0', 'filename': 'image.png', 'directory': 'courses', 'url': 'http://localhost:8000/static/courses/image.png'}}
+7. Проверка загруженного файла
+В JSON-ответе сервера есть поле url, например:
+
+"url": "http://localhost:8000/static/courses/image.png"
+Откройте эту ссылку в браузере. Если изображение отобразилось — файл успешно загружен!
+
+
+
+Теперь можно переходить к разработке полноценного API-клиента для работы с файлами.
