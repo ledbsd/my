@@ -1,0 +1,317 @@
+Практикуемся в использовании API-клиентов
+Давайте посмотрим, как на практике можно использовать API-клиенты и насколько это удобно. Начнем с простого примера: воспользуемся PublicUsersClient и PrivateUsersClient.
+
+Наша цель — написать скрипт, который:
+
+Создаст пользователя через API.
+Авторизуется под этим пользователем.
+Получит его данные по эндпоинту /api/v1/users/{user_id}.
+1. Создаем файл api_client_get_user.py
+В корне проекта autotests-api создаем файл api_client_get_user.py:
+
+.
+└── autotests-api/
+    └── api_client_get_user.py
+2. Пишем скрипт получения пользователя
+Ранее мы использовали HTTP-запросы напрямую через httpx, но теперь будем работать через API-клиенты.
+
+from clients.private_http_builder import AuthenticationUserDict
+from clients.users.private_users_client import get_private_users_client
+from clients.users.public_users_client import get_public_users_client, CreateUserRequestDict
+from tools.fakers import get_random_email
+
+# Инициализируем клиент PublicUsersClient
+public_users_client = get_public_users_client()
+
+# Инициализируем запрос на создание пользователя
+create_user_request = CreateUserRequestDict(
+    email=get_random_email(),
+    password="string",
+    lastName="string",
+    firstName="string",
+    middleName="string"
+)
+# Отправляем POST запрос на создание пользователя
+create_user_response = public_users_client.create_user_api(create_user_request)
+create_user_response_data = create_user_response.json()
+print('Create user data:', create_user_response_data)
+
+# Инициализируем пользовательские данные для аутентификации
+authentication_user = AuthenticationUserDict(
+    email=create_user_request['email'],
+    password=create_user_request['password']
+)
+# Инициализируем клиент PrivateUsersClient
+private_users_client = get_private_users_client(authentication_user)
+
+# Отправляем GET запрос на получение данных пользователя
+get_user_response = private_users_client.get_user_api(create_user_response_data['user']['id'])
+get_user_response_data = get_user_response.json()
+print('Get user data:', get_user_response_data)
+Теперь код стал более читаемым: логика работы с API инкапсулирована внутри клиентов, а мы просто вызываем удобные методы.
+
+3. Как выглядел код раньше
+Ранее мы использовали httpx напрямую:
+
+import httpx
+
+from tools.fakers import get_random_email
+
+# Создаем пользователя
+create_user_payload = {
+    "email": get_random_email(),
+    "password": "string",
+    "lastName": "string",
+    "firstName": "string",
+    "middleName": "string"
+}
+create_user_response = httpx.post("http://localhost:8000/api/v1/users", json=create_user_payload)
+create_user_response_data = create_user_response.json()
+print('Create user data:', create_user_response_data)
+
+# Проходим аутентификацию
+login_payload = {
+    "email": create_user_payload['email'],
+    "password": create_user_payload['password']
+}
+login_response = httpx.post("http://localhost:8000/api/v1/authentication/login", json=login_payload)
+login_response_data = login_response.json()
+print('Login data:', login_response_data)
+
+# Получаем данные пользователя
+get_user_headers = {
+    "Authorization": f"Bearer {login_response_data['token']['accessToken']}"
+}
+get_user_response = httpx.get(
+    f"http://localhost:8000/api/v1/users/{create_user_response_data['user']['id']}",
+    headers=get_user_headers
+)
+get_user_response_data = get_user_response.json()
+print('Get user data:', get_user_response_data)
+Как видно, раньше код был менее структурированным: в каждом месте приходилось вручную работать с httpx.
+
+4. Улучшаем API-клиенты
+Давайте обратим внимание на следующий код:
+
+create_user_response = public_users_client.create_user_api(create_user_request)
+create_user_response_data = create_user_response.json()
+Логика получения json дублируется везде, где мы вызываем API. Мы можем скрыть это внутри клиентов, как это уже сделано в методе login.
+
+Реализуем метод create_user в PublicUsersClient:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.public_http_builder import get_public_http_client
+
+
+# Добавили описание структуры пользователя
+class User(TypedDict):
+    """
+    Описание структуры пользователя.
+    """
+    id: str
+    email: str
+    lastName: str
+    firstName: str
+    middleName: str
+
+
+class CreateUserRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание пользователя.
+    """
+    email: str
+    password: str
+    lastName: str
+    firstName: str
+    middleName: str
+
+
+# Добавили описание структуры ответа создания пользователя
+class CreateUserResponseDict(TypedDict):
+    """
+    Описание структуры ответа создания пользователя.
+    """
+    user: User
+
+
+class PublicUsersClient(APIClient):
+    """
+    Клиент для работы с /api/v1/users
+    """
+
+    def create_user_api(self, request: CreateUserRequestDict) -> Response:
+        """
+        Метод создает пользователя.
+
+        :param request: Словарь с email, password, lastName, firstName, middleName.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/users", json=request)
+
+    # Добавили новый метод
+    def create_user(self, request: CreateUserRequestDict) -> CreateUserResponseDict:
+        response = self.create_user_api(request)
+        return response.json()
+
+
+def get_public_users_client() -> PublicUsersClient:
+    """
+    Функция создаёт экземпляр PublicUsersClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию PublicUsersClient.
+    """
+    return PublicUsersClient(client=get_public_http_client())
+Реализуем метод get_user в PrivateUsersClient:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.private_http_builder import get_private_http_client, AuthenticationUserDict
+
+
+# Добавили описание структуры пользователя
+class User(TypedDict):
+    """
+    Описание структуры пользователя.
+    """
+    id: str
+    email: str
+    lastName: str
+    firstName: str
+    middleName: str
+
+
+# Добавили описание структуры ответа получения пользователя
+class GetUserResponseDict(TypedDict):
+    """
+    Описание структуры ответа получения пользователя.
+    """
+    user: User
+
+
+class UpdateUserRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление пользователя.
+    """
+    email: str | None
+    lastName: str | None
+    firstName: str | None
+    middleName: str | None
+
+
+class PrivateUsersClient(APIClient):
+    """
+    Клиент для работы с /api/v1/users
+    """
+
+    def get_user_me_api(self) -> Response:
+        """
+        Метод получения текущего пользователя.
+
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get("/api/v1/users/me")
+
+    def get_user_api(self, user_id: str) -> Response:
+        """
+        Метод получения пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/users/{user_id}")
+
+    def update_user_api(self, user_id: str, request: UpdateUserRequestDict) -> Response:
+        """
+        Метод обновления пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :param request: Словарь с email, lastName, firstName, middleName.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.patch(f"/api/v1/users/{user_id}", json=request)
+
+    def delete_user_api(self, user_id: str) -> Response:
+        """
+        Метод удаления пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/users/{user_id}")
+
+    # Добавили новый метод
+    def get_user(self, user_id: str) -> GetUserResponseDict:
+        response = self.get_user_api(user_id)
+        return response.json()
+
+
+def get_private_users_client(user: AuthenticationUserDict) -> PrivateUsersClient:
+    """
+    Функция создаёт экземпляр PrivateUsersClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию PrivateUsersClient.
+    """
+    return PrivateUsersClient(client=get_private_http_client(user))
+Важно! Сразу хочу обратить внимание, что мы задублировали структуру пользователя в двух файлах public_users_client.py, private_users_client.py, код абсолютно идентичен:
+
+class User(TypedDict):
+    """
+    Описание структуры пользователя.
+    """
+    id: str
+    email: str
+    lastName: str
+    firstName: str
+    middleName: str
+Пока это нормально, в будущем мы избавимся от этого, когда будем работать с библиотекой pydantic.
+
+5. Оптимизируем код в скрипте
+Теперь используем новые методы create_user и get_user:
+
+from clients.private_http_builder import AuthenticationUserDict
+from clients.users.private_users_client import get_private_users_client
+from clients.users.public_users_client import get_public_users_client, CreateUserRequestDict
+from tools.fakers import get_random_email
+
+public_users_client = get_public_users_client()
+
+create_user_request = CreateUserRequestDict(
+    email=get_random_email(),
+    password="string",
+    lastName="string",
+    firstName="string",
+    middleName="string"
+)
+# Используем метод create_user
+create_user_response = public_users_client.create_user(create_user_request)
+print('Create user data:', create_user_response)
+
+authentication_user = AuthenticationUserDict(
+    email=create_user_request['email'],
+    password=create_user_request['password']
+)
+private_users_client = get_private_users_client(authentication_user)
+
+# Используем метод get_user
+get_user_response = private_users_client.get_user(create_user_response['user']['id'])
+print('Get user data:', get_user_response)
+Мы убрали дублирующийся код, инкапсулировав его в методы API-клиентов.
+Теперь при создании пользователя и получении его данных используется строгая типизация.
+Код стал гораздо более понятным, его легко поддерживать и масштабировать.
+6. Запуск скрипта
+Теперь запустим скрипт для получения пользователя, чтобы убедиться, что всё работает корректно:
+
+python -m api_client_get_user
+После успешного выполнения в консоль будет выведено примерно следующее:
+
+Create user data: {'user': {'id': 'd8b11723-e83b-487f-9f33-15d252f8fcfe', 'email': 'test.1740929117.487956@example.com', 'lastName': 'string', 'firstName': 'string', 'middleName': 'string'}}
+Get user data: {'user': {'id': 'd8b11723-e83b-487f-9f33-15d252f8fcfe', 'email': 'test.1740929117.487956@example.com', 'lastName': 'string', 'firstName': 'string', 'middleName': 'string'}}
+Заключение
+Как видно из примера, использование API-клиентов несложное – они помогают упростить взаимодействие с API и избегать дублирования логики.
