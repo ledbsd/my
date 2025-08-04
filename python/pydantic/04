@@ -1,0 +1,396 @@
+Применяем Pydantic в AuthenticationClient
+В этом уроке мы будем использовать Pydantic в наших API-клиентах, чтобы сделать работу с ними ещё более удобной и структурированной. Ранее мы уже познакомились с основами работы с Pydantic, а теперь применим эти знания на практике.
+
+Как вы могли заметить, у нас уже есть модели для всех клиентов, но они представлены в виде TypedDict. Наша основная задача — переписать существующие модели с использованием Pydantic и вынести их в отдельные файлы для лучшей структуризации.
+
+1. Создание файла authentication_schema.py
+Начнем с создания файла для Pydantic-моделей.
+
+Перейдите в папку /clients/authentication и создайте файл authentication_schema.py, где будут храниться все модели для клиента AuthenticationClient.
+
+.
+└── autotests-api/
+    └── clients/
+        └── authentication/
+            └── authentication_schema.py  # Здесь будут храниться модели Pydantic
+Вынесение моделей в отдельные файлы — одна из лучших практик, которая упрощает поддержку проекта и делает код чище.
+
+В следующем шаге мы опишем модели для запросов и ответов, используя все возможности Pydantic.
+
+2. Описываем модели
+Ранее наши модели были реализованы с использованием TypedDict, но теперь мы адаптируем их под Pydantic.
+
+Вот текущая реализация с TypedDict:
+
+class Token(TypedDict):
+    """
+    Описание структуры аутентификационных токенов.
+    """
+    tokenType: str
+    accessToken: str
+    refreshToken: str
+
+
+class LoginRequestDict(TypedDict):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+class LoginResponseDict(TypedDict):
+    """
+    Описание структуры ответа аутентификации.
+    """
+    token: Token
+
+
+class RefreshRequestDict(TypedDict):
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    refreshToken: str
+Теперь перепишем модели, используя Pydantic:
+
+from pydantic import BaseModel, Field
+
+
+# Добавили суффикс Schema вместо Dict
+class TokenSchema(BaseModel):  # Наследуем от BaseModel вместо TypedDict
+    """
+    Описание структуры аутентификационных токенов.
+    """
+    token_type: str = Field(alias="tokenType")  # Использовали alise
+    access_token: str = Field(alias="accessToken")  # Использовали alise
+    refresh_token: str = Field(alias="refreshToken")  # Использовали alise
+
+
+# Добавили суффикс Schema вместо Dict
+class LoginRequestSchema(BaseModel):  # Наследуем от BaseModel вместо TypedDict
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+# Добавили суффикс Schema вместо Dict
+class LoginResponseSchema(BaseModel):  # Наследуем от BaseModel вместо TypedDict
+    """
+    Описание структуры ответа аутентификации.
+    """
+    token: TokenSchema
+
+
+# Добавили суффикс Schema вместо Dict
+class RefreshRequestSchema(BaseModel):  # Наследуем от BaseModel вместо TypedDict
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    refresh_token: str = Field(alias="refreshToken")  # Использовали alise
+Что изменилось?
+Перешли с TypedDict на BaseModel. Теперь каждая модель наследуется от Pydantic BaseModel, что позволяет использовать валидацию, сериализацию и автодокументирование.
+Изменили названия классов. Заменили суффикс Dict на Schema, чтобы явно указать, что это модели Pydantic.
+Используем Field(alias="..."). Так как в API могут использоваться поля в camelCase, но в Python принят snake_case, мы добавили alias через Field(), чтобы сохранить совместимость.
+Документация осталась без изменений. Docstrings по-прежнему корректно описывают каждую модель, так как их смысл не изменился.
+3. Применяем модели в AuthenticationClient
+Теперь применим модели в самом AuthenticationClient. Сейчас файл с клиентом выглядит следующим образом:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.public_http_builder import get_public_http_client
+
+
+class Token(TypedDict):
+    """
+    Описание структуры аутентификационных токенов.
+    """
+    tokenType: str
+    accessToken: str
+    refreshToken: str
+
+
+class LoginRequestDict(TypedDict):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+class LoginResponseDict(TypedDict):
+    """
+    Описание структуры ответа аутентификации.
+    """
+    token: Token
+
+
+class RefreshRequestDict(TypedDict):
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    refreshToken: str
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    def login_api(self, request: LoginRequestDict) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/login", json=request)
+
+    def refresh_api(self, request: RefreshRequestDict) -> Response:
+        """
+        Метод обновляет токен авторизации.
+
+        :param request: Словарь с refreshToken.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/refresh", json=request)
+
+    # Добавили метод login
+    def login(self, request: LoginRequestDict) -> LoginResponseDict:
+        response = self.login_api(request)  # Отправляем запрос на аутентификацию
+        return response.json()  # Извлекаем JSON из ответа
+
+
+def get_authentication_client() -> AuthenticationClient:
+    """
+    Функция создаёт экземпляр AuthenticationClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию AuthenticationClient.
+    """
+    return AuthenticationClient(client=get_public_http_client())
+Применим модели Pydantic:
+
+from httpx import Response
+
+from clients.api_client import APIClient
+# Добавили импорт моделей
+from clients.authentication.authentication_schema import LoginRequestSchema, RefreshRequestSchema, LoginResponseSchema
+from clients.public_http_builder import get_public_http_client
+
+
+# Старые модели с использованием TypedDict были удалены
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    # Теперь используем pydantic-модель для аннотации
+    def login_api(self, request: LoginRequestSchema) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post(
+            "/api/v1/authentication/login",
+            # Сериализуем модель в словарь с использованием alias
+            json=request.model_dump(by_alias=True)
+        )
+
+    # Теперь используем pydantic-модель для аннотации
+    def refresh_api(self, request: RefreshRequestSchema) -> Response:
+        """
+        Метод обновляет токен авторизации.
+
+        :param request: Словарь с refreshToken.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post(
+            "/api/v1/authentication/refresh",
+            # Сериализуем модель в словарь с использованием alias
+            json=request.model_dump(by_alias=True)
+        )
+
+    # Теперь используем pydantic-модель для аннотации
+    def login(self, request: LoginRequestSchema) -> LoginResponseSchema:
+        response = self.login_api(request)
+        # Инициализируем модель через валидацию JSON строки
+        return LoginResponseSchema.model_validate_json(response.text)
+
+
+def get_authentication_client() -> AuthenticationClient:
+    """
+    Функция создаёт экземпляр AuthenticationClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию AuthenticationClient.
+    """
+    return AuthenticationClient(client=get_public_http_client())
+Что изменилось?
+Удалены старые модели на TypedDict — теперь импортируются Pydantic-модели:
+from clients.authentication.authentication_schema import LoginRequestSchema, RefreshRequestSchema, LoginResponseSchema
+Обновлены аннотации методов API — теперь вместо словарей (dict) используются Pydantic-модели.
+Возвращаем объекты Pydantic, а не словари. В методе login теперь возвращается объект LoginResponseSchema, а не просто dict. Поэтому добавлена инициализация модели валидацию JSON строки response.text:
+return LoginResponseSchema.model_validate_json(response.text)
+Сериализация перед отправкой запроса. Ранее передавался просто dict, теперь передается объект Pydantic, поэтому он сериализуется в dict с сохранением alias для полей:
+
+json=request.model_dump(by_alias=True)
+Инициализация модели через model_validate_json
+Обратите внимание, что теперь вместо response.json() мы используем response.text, который возвращает тело ответа в виде строки. Давай разберем разницу между LoginResponseSchema.model_validate_json(response.text) и LoginResponseSchema(**response.json()).
+
+1. LoginResponseSchema(**response.json())
+
+Этот вариант:
+
+Использует response.json(), который парсит JSON-строку в Python-словарь.
+Передает полученный словарь в конструктор Pydantic-модели, распаковывая его через **kwargs.
+Потенциальные проблемы:
+
+Если API вернет null, "", HTML-ошибку или что-то неожиданное — response.json() вызовет исключение (json.decoder.JSONDecodeError).
+Если в ответе отсутствует ожидаемое поле, Pydantic выбросит ошибку, но исключение будет менее информативным.
+2. LoginResponseSchema.model_validate_json(response.text)
+
+Этот вариант:
+
+Получает response.text — сырой JSON без предварительного парсинга.
+Использует Pydantic-метод model_validate_json(), который самостоятельно парсит JSON и создает объект модели.
+Преимущества:
+
+Обрабатывает JSON строго в контексте модели (не пропуская неиспользуемые поля).
+Может выдавать более понятные ошибки, если JSON-структура не совпадает с моделью.
+Защищает от ошибок json() в httpx, если API неожиданно вернет не-JSON (например, HTML-ошибку).
+Итог
+
+Оба варианта рабочие, но model_validate_json(response.text) безопаснее, так как:
+
+Не требует response.json() → меньше шансов на json.decoder.JSONDecodeError.
+Поддерживает строгую валидацию JSON-ответа сразу в Pydantic.
+Логичнее, если хочется работать с Pydantic-методами вместо ручного разбора.
+Так что, если API всегда возвращает предсказуемый JSON — можно использовать **response.json(). Но model_validate_json() лучше в реальных проектах, где возможны неожиданные ответы.
+
+4. Применяем модели в private_http_builder
+Теперь нам необходимо обновить логику использования метода login. В данный момент он используется в одном месте — внутри функции get_private_http_client, которая расположена в файле clients/private_http_builder.py.
+
+from typing import TypedDict
+
+from httpx import Client
+
+from clients.authentication.authentication_client import get_authentication_client, LoginRequestDict
+
+
+class AuthenticationUserDict(TypedDict):
+    email: str
+    password: str
+
+
+def get_private_http_client(user: AuthenticationUserDict) -> Client:
+    authentication_client = get_authentication_client()
+
+    login_request = LoginRequestDict(email=user['email'], password=user['password'])
+    login_response = authentication_client.login(login_request)
+
+    return Client(
+        timeout=100,
+        base_url="http://localhost:8000",
+        headers={"Authorization": f"Bearer {login_response['token']['accessToken']}"}
+    )
+Переписываем с использованием Pydantic-моделей:
+
+from httpx import Client
+from pydantic import BaseModel
+
+from clients.authentication.authentication_client import get_authentication_client
+# Импортируем модель LoginRequestSchema
+from clients.authentication.authentication_schema import LoginRequestSchema
+
+
+# Добавили суффикс Schema вместо Dict
+class AuthenticationUserSchema(BaseModel):  # Наследуем от BaseModel вместо TypedDict
+    email: str
+    password: str
+
+
+def get_private_http_client(user: AuthenticationUserSchema) -> Client:
+    authentication_client = get_authentication_client()
+
+    # Используем модель LoginRequestSchema
+    # Значения теперь извлекаем не по ключу, а через атрибуты
+    login_request = LoginRequestSchema(email=user.email, password=user.password)
+    login_response = authentication_client.login(login_request)
+
+    return Client(
+        timeout=100,
+        base_url="http://localhost:8000",
+        # Значения теперь извлекаем не по ключу, а через атрибуты
+        headers={"Authorization": f"Bearer {login_response.token.access_token}"}
+    )
+Адаптация приватных билдеров API-клиентов
+Теперь нам нужно обновить все приватные билдеры API-клиентов:
+
+get_private_users_client
+get_files_client
+get_courses_client
+get_exercises_client
+Рассмотрим на примере get_private_users_client:
+
+# Вместо AuthenticationUserDict импортируем AuthenticationUserSchema
+from clients.private_http_builder import get_private_http_client, AuthenticationUserSchema
+
+...
+
+# Вместо AuthenticationUserDict используем AuthenticationUserSchema
+def get_private_users_client(user: AuthenticationUserSchema) -> PrivateUsersClient:
+Остальной код остается без изменений.
+
+Важно! По аналогии необходимо сделать то же самое для всех API-клиентов в перечисленных выше
+
+Обновление скриптов.
+Аналогично, необходимо обновить скрипты, где использовались билдеры приватных API-клиентов:
+
+api_client_get_user.py
+api_client_create_course.py
+api_client_create_exercise.py
+Рассмотрим на примере api_client_get_user.py:
+
+# Вместо AuthenticationUserDict импортируем AuthenticationUserSchema
+from clients.private_http_builder import AuthenticationUserSchema
+
+...
+
+# Вместо AuthenticationUserDict используем AuthenticationUserSchema
+authentication_user = AuthenticationUserSchema(
+    email=create_user_request['email'],
+    password=create_user_request['password']
+)
+Остальной код остается без изменений.
+
+Важно! По аналогии необходимо внести изменения во все остальные файлы, использующие билдеры приватных API-клиентов.
+
+5. Проверяем работоспособность
+Теперь давайте убедимся, что внесенные изменения по переходу на Pydantic-модели не нарушили работу с клиентами. Для этого запустим следующие скрипты:
+
+api_client_get_user.py
+api_client_create_course.py
+api_client_create_exercise.py
+Выполните их с помощью следующих команд:
+
+python -m api_client_get_user
+python -m api_client_create_course
+python -m api_client_create_exercise
+Если же у вас возникли ошибки, проверьте, что:
+
+Вы внесли все изменения из пункта 4, включая обновление моделей и импортов.
+Везде, где раньше использовались TypedDict, теперь применяются Pydantic-модели.
+Вызовы методов API-клиентов адаптированы под новые схемы данных.
+Что нам это дало?
+Разделение слоев — теперь описание моделей и схема API-клиента четко разделены, что делает код более читаемым, поддерживаемым и масштабируемым.
+Явная валидация данных — Pydantic автоматически проверяет входные данные, предотвращая ошибки, которые раньше могли возникать только во время выполнения.
+Четкие аннотации типов — благодаря классам-моделям IDE могут подсказывать доступные атрибуты и типы, упрощая работу с кодом.
+Более удобная сериализация и десериализация — теперь можно легко преобразовывать модели в JSON (model_dump()), а также загружать их обратно (model_validate())..
+Гибкость и расширяемость — можно добавлять кастомные валидаторы, методы и дополнительные поля без изменения API-клиента.
+В целом, переход на Pydantic делает код более надежным, понятным и удобным для работы, снижая вероятность ошибок и упрощая дальнейшее развитие проекта.
