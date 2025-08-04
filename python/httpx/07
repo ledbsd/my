@@ -1,0 +1,285 @@
+Что такое API клиент?
+API клиент — это инструмент или библиотека, которая помогает вашему приложению взаимодействовать с другими сервисами через API (Application Programming Interface). Взаимодействие с API часто включает отправку запросов и получение ответов от удалённых серверов. Клиент API инкапсулирует весь процесс создания запросов, обработки ответов и управления ошибками, упрощая работу с сервисами.
+
+Почему важен API клиент?
+Представьте, что вам нужно получить данные с удалённого сервера. Вместо того, чтобы вручную писать низкоуровневый код для создания HTTP-запросов, обработки ошибок и парсинга ответа, вы используете API клиента. Это позволяет вам сосредоточиться на логике приложения, а не на технических деталях взаимодействия с сервером.
+
+Что делает API клиент?
+Отправка запросов: Клиент формирует запросы (GET, POST, PUT, DELETE и т.д.) с нужными параметрами, заголовками и телом запроса.
+Получение ответов: Клиент получает ответы от сервера и преобразует их в удобный для использования формат (например, JSON или XML).
+Обработка ошибок: В случае ошибок (например, если сервер не доступен или запрос некорректен), API клиент обрабатывает их и предоставляет полезные сообщения для отладки.
+Работаем с API клиентом из HTTPX
+В HTTPX уже встроен базовый API-клиент с удобным функционалом, на основе которого мы можем строить свои API-клиенты уже для конкретных API. Но давайте для начала познакомимся с основами.
+
+1. Создадим файл httpx_client.py
+В корне проекта autotests-api создадим файл httpx_client.py:
+
+.
+└── autotests-api/
+    └── httpx_client.py
+2. Добавим скрипт для работы с API, используя клиент
+import httpx
+
+# Инициализируем клиент
+client = httpx.Client()
+
+# Выполняем GET-запрос, используя клиент
+response = client.get("http://localhost:8000/api/v1/users/me")
+
+# Выводим ответ в консоль
+print(response.text)
+
+Разбор кода:
+client = httpx.Client() – создаёт экземпляр клиента httpx.Client, который позволяет управлять HTTP-соединениями и повторно использовать TCP-соединение между запросами.
+client.get("http://localhost:8000/api/v1/users/me") – выполняет GET-запрос к API.
+print(response.text) – выводит в консоль ответ сервера.
+Теперь давайте вспомним, как мы ранее делали запросы к API. Это выглядело так:
+
+import httpx
+
+httpx.get("http://localhost:8000/api/v1/users/me")
+Как видите, при использовании клиента изменилось не так много. Главное отличие – теперь мы вызываем метод GET не у httpx напрямую, а через клиент.
+
+3. Используем base_url для упрощения кода
+Ранее при работе с API нам приходилось передавать полный URL в каждом запросе. В httpx.Client можно задать base_url, чтобы использовать относительные пути:
+
+import httpx
+
+# Инициализируем клиент с base_url
+client = httpx.Client(base_url="http://localhost:8000")  
+
+# Выполняем GET-запрос, используя относительный путь
+response = client.get("/api/v1/users/me")
+
+# Выводим ответ в консоль
+print(response.text)
+Разбор кода:
+base_url="http://localhost:8000" – теперь все запросы будут автоматически дополняться этим базовым URL.
+client.get("/api/v1/users/me") – вместо полного URL передаём только путь.
+4. Добавляем timeout для всех запросов
+Теперь рассмотрим ещё одно преимущество использования клиентов в HTTPX. Мы можем задать timeout для всех запросов, чтобы не указывать его каждый раз:
+
+import httpx
+
+# Инициализируем клиент с base_url и timeout
+client = httpx.Client(
+    base_url="http://localhost:8000",
+    timeout=100  # Таймаут в секундах
+)
+
+# Выполняем GET-запрос
+response = client.get("/api/v1/users/me")
+print(response.text)
+Разбор кода:
+timeout=100 – теперь все запросы автоматически используют этот таймаут.
+5. Добавляем авторизационные заголовки на уровне клиента
+Допустим, API требует аутентификацию. Мы можем добавить заголовок Authorization, чтобы не передавать его вручную в каждом запросе:
+
+import httpx
+
+# Проходим аутентификацию
+login_payload = {
+    "email": "user@example.com",
+    "password": "string"
+}
+login_response = httpx.post("http://localhost:8000/api/v1/authentication/login", json=login_payload)
+login_response_data = login_response.json()
+print('Login data:', login_response_data)
+
+# Инициализируем клиент с авторизацией
+client = httpx.Client(
+    base_url="http://localhost:8000",
+    timeout=100,
+    headers={"Authorization": f"Bearer {login_response_data['token']['accessToken']}"}
+)
+
+# Выполняем запрос с авторизацией
+get_user_me_response = client.get("/api/v1/users/me")
+get_user_me_response_data = get_user_me_response.json()
+print('Get user me data:', get_user_me_response_data)
+Разбор кода:
+Мы выполняем POST-запрос для получения accessToken.
+Используем headers={"Authorization": f"Bearer {token}"} при создании клиента.
+Теперь все запросы автоматически включают этот заголовок.
+6. Запускаем скрипт
+Теперь проверим, что всё работает корректно. Выполним команду:
+
+python -m httpx_client
+При успешном выполнении скрипта в консоль выведется:
+
+Login data: {'token': {'tokenType': 'bearer', 'accessToken': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHBpcmUiOiIyMDI1LTAyLTI4VDE2OjAwOjQyLjMyMDk2OSIsInVzZXJfaWQiOiJlOWY0N2I2Yy1kZGNmLTQyMDktODczMC02ZmU0OGE3YWIxNzYifQ.dcAHtTadjuHclICDw4KhwiRtwGungBImebYDLRylt-c', 'refreshToken': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHBpcmUiOiIyMDI1LTA0LTI5VDE1OjMwOjQyLjMyMTI3NSIsInVzZXJfaWQiOiJlOWY0N2I2Yy1kZGNmLTQyMDktODczMC02ZmU0OGE3YWIxNzYifQ.xOlfZQSeTmVOFoFDh90yPpU2LDqxshHt8qtHbiGd_Ss'}}
+Get user me data: {'user': {'id': 'e9f47b6c-ddcf-4209-8730-6fe48a7ab176', 'email': 'user@example.com', 'lastName': 'string', 'firstName': 'string', 'middleName': 'string'}}
+
+Реализуем базовый API клиент
+1. Создаем файл api_client.py
+Для начала создадим папку clients, внутри которой разместим файл api_client.py.
+
+.
+└── autotests-api/
+    └── clients/
+        ├── __init__.py
+        └── api_client.py
+Этот файл будет содержать базовый API клиент с основными методами, который послужит основой для всех последующих клиентов API, используемых в автотестах. В дальнейшем именно на этом уровне мы будем добавлять дополнительные возможности, такие как авторизация, логирование запросов, обработка ошибок и т. д.
+
+2. Реализуем базовый API клиент
+from httpx import Client
+
+
+class APIClient:
+    def __init__(self, client: Client):
+        """
+        Базовый API клиент, принимающий объект httpx.Client.
+        
+        :param client: экземпляр httpx.Client для выполнения HTTP-запросов
+        """
+        self.client = client
+В данном случае класс APIClient представляет собой базовый API клиент, который задает интерфейс для инициализации всех последующих клиентов API. Он принимает объект httpx.Client, который используется для выполнения запросов.
+
+Все базовые методы работы с API мы будем добавлять на уровне данного клиента. На текущем этапе нам нужно реализовать четыре метода:
+
+get — выполнение GET-запросов.
+
+post — выполнение POST-запросов.
+
+patch — выполнение PATCH-запросов.
+
+delete — выполнение DELETE-запросов.
+
+3. Реализуем метод GET
+from httpx import Client, URL, Response, QueryParams
+
+
+class APIClient:
+    def __init__(self, client: Client):
+        self.client = client
+    
+    def get(self, url: URL | str, params: QueryParams | None = None) -> Response:
+        """
+        Выполняет GET-запрос.
+        
+        :param url: URL-адрес эндпоинта.
+        :param params: GET-параметры запроса (например, ?key=value).
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.get(url, params=params)
+Разбор кода:
+Метод get принимает URL и параметры запроса (params).
+
+params — это словарь или кортежи ключ-значение, передаваемые в строке запроса (query string), например: ?name=John&age=30.
+
+Метод возвращает объект Response, содержащий ответ от сервера.
+
+4. Реализуем метод POST
+from typing import Any
+
+from httpx import Client, URL, Response, QueryParams
+from httpx._types import RequestData, RequestFiles
+
+
+class APIClient:
+    def __init__(self, client: Client):
+        self.client = client
+    
+    def get(self, url: URL | str, params: QueryParams | None = None) -> Response:
+        """
+        Выполняет GET-запрос.
+
+        :param url: URL-адрес эндпоинта.
+        :param params: GET-параметры запроса (например, ?key=value).
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.get(url, params=params)
+    
+    def post(
+            self,
+            url: URL | str,
+            json: Any | None = None,
+            data: RequestData | None = None,
+            files: RequestFiles | None = None
+    ) -> Response:
+        """
+        Выполняет POST-запрос.
+        
+        :param url: URL-адрес эндпоинта.
+        :param json: Данные в формате JSON.
+        :param data: Форматированные данные формы (например, application/x-www-form-urlencoded).
+        :param files: Файлы для загрузки на сервер.
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.post(url, json=json, data=data, files=files)
+Разбор кода:
+
+Добавлены параметры data и files, которые понадобятся в будущем, например, для загрузки файлов через эндпоинт /api/v1/files.
+
+json используется для передачи данных в формате JSON.
+
+data передает параметры в x-www-form-urlencoded формате.
+
+files позволяет загружать файлы на сервер.
+
+5. Реализуем метод patch, delete
+from typing import Any
+
+from httpx import Client, URL, Response, QueryParams
+from httpx._types import RequestData, RequestFiles
+
+
+class APIClient:
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, url: URL | str, params: QueryParams | None = None) -> Response:
+        """
+        Выполняет GET-запрос.
+
+        :param url: URL-адрес эндпоинта.
+        :param params: GET-параметры запроса (например, ?key=value).
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.get(url, params=params)
+
+    def post(
+            self,
+            url: URL | str,
+            json: Any | None = None,
+            data: RequestData | None = None,
+            files: RequestFiles | None = None
+    ) -> Response:
+        """
+        Выполняет POST-запрос.
+
+        :param url: URL-адрес эндпоинта.
+        :param json: Данные в формате JSON.
+        :param data: Форматированные данные формы (например, application/x-www-form-urlencoded).
+        :param files: Файлы для загрузки на сервер.
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.post(url, json=json, data=data, files=files)
+
+    def patch(self, url: URL | str, json: Any | None = None) -> Response:
+        """
+        Выполняет PATCH-запрос (частичное обновление данных).
+
+        :param url: URL-адрес эндпоинта.
+        :param json: Данные для обновления в формате JSON.
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.patch(url, json=json)
+
+    def delete(self, url: URL | str) -> Response:
+        """
+        Выполняет DELETE-запрос (удаление данных).
+
+        :param url: URL-адрес эндпоинта.
+        :return: Объект Response с данными ответа.
+        """
+        return self.client.delete(url)
+Разбор кода:
+patch используется для частичного обновления ресурса, передавая измененные данные.
+
+delete удаляет ресурс по указанному URL.
+
+В обоих методах в Response возвращается объект ответа сервера.
+
+Итог
+На данном этапе базовый API клиент полностью реализован. В дальнейшем все специфические API клиенты могут наследоваться от APIClient, используя его методы для работы с запросами. Это позволит избежать дублирования кода и улучшить читаемость тестов.
