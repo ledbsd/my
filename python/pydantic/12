@@ -1,0 +1,97 @@
+Проверяем генерацию случайных данных на практике
+Ссылки:
+
+Шаблонный код/Boilerplate code
+Теперь посмотрим, как генерация случайных данных работает в реальном примере. Для этого адаптируем существующие API-клиенты:
+
+api_client_get_user.py
+api_client_create_course.py
+1. Используем генерацию случайных данных в api_client_get_user.py
+Начнем с простого: теперь, когда наши модели поддерживают генерацию случайных данных, нам не нужно передавать данные вручную при инициализации модели. Посмотрим, как изменился код api_client_get_user.py:
+
+from clients.private_http_builder import AuthenticationUserSchema
+from clients.users.private_users_client import get_private_users_client
+from clients.users.public_users_client import get_public_users_client
+from clients.users.users_schema import CreateUserRequestSchema
+
+public_users_client = get_public_users_client()
+
+# Больше нет необходимости передавать значения, они будут генерироваться автоматически
+create_user_request = CreateUserRequestSchema()
+create_user_response = public_users_client.create_user(create_user_request)
+print('Create user data:', create_user_response)
+
+authentication_user = AuthenticationUserSchema(
+    email=create_user_request.email,
+    password=create_user_request.password
+)
+private_users_client = get_private_users_client(authentication_user)
+
+get_user_response = private_users_client.get_user(create_user_response.user.id)
+print('Get user data:', get_user_response)
+Что это нам дало?
+
+Удалили лишние аргументы. Больше нет необходимости передавать email, password и другие параметры вручную.
+Код стал короче и чище. Теперь меньше бойлерплейта, а логика осталась прозрачной и удобочитаемой.
+Скрипт остался рабочим. Генерация данных не нарушила функциональность, он продолжает работать как раньше
+Гибкость. При необходимости мы все еще можем передать кастомные значения, если хотим проверить конкретный кейс.
+Упрощение импорта. Мы удалили from tools.fakers import fake, так как фейковые данные теперь генерируются на уровне моделей. Это еще сильнее сократило код и улучшило его читаемость.
+Чтобы убедиться, что все работает, выполняем команду:
+
+python -m api_client_get_user
+При успешном выполнении вывод в консоль будет выглядеть примерно так:
+
+Create user data: user=UserSchema(id='707528bf-7260-41ac-8584-866eaff06029', email='ipeterson@example.net', last_name='Hurley', first_name='Richard', middle_name='Jeremy')
+Get user data: user=UserSchema(id='707528bf-7260-41ac-8584-866eaff06029', email='ipeterson@example.net', last_name='Hurley', first_name='Richard', middle_name='Jeremy')
+Таким образом, автоматическая генерация случайных данных позволяет избавиться от ненужного кода, повысить читаемость и при этом сохранить контроль над данными.
+
+2. Используем генерацию случайных данных в api_client_create_course.py
+Теперь посмотрим, как можно упростить код в api_client_create_course.py, используя генерацию случайных данных в моделях.
+
+from clients.courses.courses_client import get_courses_client
+from clients.courses.courses_schema import CreateCourseRequestSchema
+from clients.files.files_client import get_files_client
+from clients.files.files_schema import CreateFileRequestSchema
+from clients.private_http_builder import AuthenticationUserSchema
+from clients.users.public_users_client import get_public_users_client
+from clients.users.users_schema import CreateUserRequestSchema
+
+public_users_client = get_public_users_client()
+
+# Больше нет необходимости передавать значения, они будут генерировать автоматически
+create_user_request = CreateUserRequestSchema()
+create_user_response = public_users_client.create_user(create_user_request)
+
+authentication_user = AuthenticationUserSchema(
+    email=create_user_request.email,
+    password=create_user_request.password
+)
+files_client = get_files_client(authentication_user)
+courses_client = get_courses_client(authentication_user)
+
+# Автоматическая генерация данных, кроме необходимых параметров
+create_file_request = CreateFileRequestSchema(upload_file="./testdata/files/image.png")
+create_file_response = files_client.create_file(create_file_request)
+print('Create file data:', create_file_response)
+
+# Используем сгенерированные значения для создания курса
+create_course_request = CreateCourseRequestSchema(
+    preview_file_id=create_file_response.file.id,
+    created_by_user_id=create_user_response.user.id
+)
+create_course_response = courses_client.create_course(create_course_request)
+print('Create course data:', create_course_response)
+Что это дало?
+Удалили явную передачу значений. Теперь CreateUserRequestSchema, CreateFileRequestSchema и CreateCourseRequestSchema автоматически получают случайные данные, за исключением ключевых полей, необходимых для успешного сценария.
+Код стал короче и лаконичнее. Меньше бойлерплейта → лучше читаемость.
+Избавились от ненужного импорта. Больше не нужно импортировать from tools.fakers import fake, так как данные теперь генерируются внутри моделей.
+Читаемость улучшилась. Код стал более понятным и менее загроможденным ненужными параметрами.
+Сохранили гибкость. При необходимости мы можем переопределить значения вручную, если нужно протестировать конкретные кейсы.
+Чтобы убедиться, что все работает, выполняем команду:
+
+python -m api_client_create_course
+При успешном выполнении в консоли отобразится результат:
+
+Create file data: file=FileSchema(id='f6b01995-e294-4609-9bfd-20b4671554e3', url=HttpUrl('http://localhost:8000/static/tests/0f5aecde-55e5-4221-a390-94ba684c6c03.png'), filename='0f5aecde-55e5-4221-a390-94ba684c6c03.png', directory='tests')
+Create course data: course=CourseSchema(id='65ea9b5f-8729-4824-905a-d5f2dcce8353', title='Within project red day structure buy key.', max_score=52, min_score=52, description='Rich recent phone a. Sometimes Mrs without test need join set. Study statement expect say way. Treat which account evidence blood everybody.', preview_file=FileSchema(id='f6b01995-e294-4609-9bfd-20b4671554e3', url=HttpUrl('http://localhost:8000/static/tests/0f5aecde-55e5-4221-a390-94ba684c6c03.png'), filename='0f5aecde-55e5-4221-a390-94ba684c6c03.png', directory='tests'), estimated_time='5 weeks', created_by_user=UserSchema(id='7ce94df0-d97e-4996-acb2-3cb6b7cb388d', email='james26@example.com', last_name='Miller', first_name='Heather', middle_name='Monica'))
+Таким образом, автоматическая генерация данных делает код чище, короче и удобнее в использовании, при этом сохраняя возможность переопределения значений при необходимости. 
