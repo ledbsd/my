@@ -1,0 +1,178 @@
+Реализуем API клиент для /api/v1/authentication
+Ссылки:
+
+Официальная документация python про TypedDict
+Официальная документация python по библиотеке typing
+snake_case
+camelCase
+В данном шаге мы реализуем клиент для работы с методами API /api/v1/authentication. Нам нужно создать класс, содержащий два метода:
+
+login_api — выполняет POST-запрос на эндпоинт /api/v1/authentication/login для аутентификации
+
+refresh_api — выполняет POST-запрос на эндпоинт /api/v1/authentication/refresh для обновления токена.
+
+Зачем нужен API-клиент?
+API-клиент позволяет инкапсулировать логику работы с API, что даёт ряд преимуществ:
+
+Избегаем дублирования кода — не нужно каждый раз прописывать URL и повторять обработку ответов.
+
+Проще поддерживать изменения — если изменится эндпоинт (/api/v1/authentication/login → /api/v2/authentication/login), правки потребуются только в одном месте.
+
+Фокус на тестировании бизнес-логики — тесты сосредоточены на логике, а не на взаимодействии с API.
+
+Будущая поддержка Pydantic — когда познакомимся с Pydantic, сможем аннотировать API-модели и валидировать данные.
+
+1. Создаём файл authentication_client.py
+В папке clients создадим новую папку authentication, а в ней файл authentication_client.py:
+
+.
+└── autotests-api/
+    └── clients/
+        ├── __init__.py
+        ├── authentication/
+        │   ├── __init__.py
+        │   └── authentication_client.py
+        └── api_client.py
+2. Создаём класс AuthenticationClient
+Наш клиент будет наследоваться от APIClient, который мы реализовывали ранее:
+
+from clients.api_client import APIClient
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+    pass
+Здесь мы создаём класс AuthenticationClient, который пока пуст, но в дальнейшем будем добавлять методы.
+
+3. Реализуем метод login_api
+Метод login_api принимает email и password, выполняет POST-запрос и возвращает объект httpx.Response:
+
+from httpx import Response
+
+from clients.api_client import APIClient
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    def login_api(self, request: dict) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/login", json=request)
+Здесь:
+
+request: dict — тело запроса в JSON-формате.
+
+self.post(...) — метод базового APIClient, который делает POST-запрос.
+
+Используем относительный URI, а не полный URL, так как base_url задаётся в APIClient.
+
+Почему login_api, а не login?
+Мы добавляем суффикс _api, чтобы избежать конфликтов, когда появятся другие методы (например, login_success, login_error). Это соглашение помогает различать методы, которые выполняют низкоуровневые API-запросы.
+
+4. Используем TypedDict для аннотации параметров
+Проблема текущего решения — request: dict слишком общий. Чтобы описать ожидаемую структуру словаря, используем TypedDict:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+
+
+class LoginRequestDict(TypedDict):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    def login_api(self, request: LoginRequestDict) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/login", json=request)
+Что такое TypedDict?
+TypedDict из typing позволяет создавать строгие типизированные словари, указывая обязательные поля. Это даёт:
+
+Статическую проверку типов (меньше ошибок при передаче данных в метод).
+
+Ясность структуры — сразу видно, какие поля обязательны.
+
+5. Реализуем метод refresh_api
+Метод refresh_api выполняет обновление токена. Для него создаём TypedDict:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+
+
+class LoginRequestDict(TypedDict):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+class RefreshRequestDict(TypedDict):
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    refreshToken: str  # Название ключа совпадает с API
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    def login_api(self, request: LoginRequestDict) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/login", json=request)
+
+    def refresh_api(self, request: RefreshRequestDict) -> Response:
+        """
+        Метод обновляет токен авторизации.
+
+        :param request: Словарь с refreshToken.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/refresh", json=request)
+Почему refreshToken, а не refresh_token?
+По правилам Python переменные именуются в snake_case. Однако API требует camelCase, поэтому оставляем refreshToken. В будущем мы научимся конвертировать названия полей автоматически с помощью Pydantic.
+
+Заключение
+Теперь у нас есть полноценный AuthenticationClient с методами login_api и refresh_api. Он:
+
+Инкапсулирует работу с API.
+
+Гарантирует правильные данные на уровне типов.
+
+Облегчает поддержку тестов и кода.
+
+В будущем мы улучшим клиент, добавив валидацию запросов и ответов с помощью Pydantic!

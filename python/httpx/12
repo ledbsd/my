@@ -1,0 +1,161 @@
+Практика реализации API клиентов: /api/v1/courses
+Ссылки:
+
+QueryString
+В этом шаге мы разберем реализацию API-клиента CoursesClient для работы с курсами через API /api/v1/courses. Этот эндпоинт имеет свои особенности, о которых мы поговорим подробнее.
+
+Методы, которые необходимо реализовать:
+
+get_courses_api – GET /api/v1/courses. Получение списка курсов для определенного пользователя.
+get_course_api – GET /api/v1/courses/{course_id}. Получение информации о курсе по course_id.
+create_course_api – POST /api/v1/courses. Создание курса
+update_course_api – PATCH /api/v1/courses/{course_id}. Обновление данных курса.
+delete_course_api – DELETE /api/v1/courses/{course_id}. Удаление курса.
+1. Создаем файл courses_client.py
+Создадим папку courses в каталоге clients, а внутри – файл courses_client.py:
+
+.
+└── autotests-api/
+    └── clients/
+        ├── __init__.py
+        ├── api_client.py
+        └── courses/
+            ├── __init__.py
+            └── courses_client.py
+2. Создаем класс CoursesClient
+Прежде чем реализовывать CoursesClient, разберем, что такое query-параметры.
+
+Что такое query-параметры?
+Query-параметры (или параметры запроса) – это часть URL, которая передается после знака ? и содержит пары ключ=значение. Несколько параметров передаются через &.
+
+Пример:
+
+http://some.url?key1=value1&key2=value2
+
+
+Если мы выполним запрос GET /api/v1/courses с userId пользователя, то увидим, что параметр userId передается в URL:
+
+curl -X 'GET' \
+  'http://localhost:8000/api/v1/courses?userId=e9f47b6c-ddcf-4209-8730-6fe48a7ab176' \
+  -H 'accept: application/json' \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHBpcmUiOiIyMDI1LTAzLTAxVDE3OjQyOjI4LjMzNTYwOCIsInVzZXJfaWQiOiJlOWY0N2I2Yy1kZGNmLTQyMDktODczMC02ZmU0OGE3YWIxNzYifQ.6yIYf5PkDvrWyHCWlQqkSdsxMYB2iNJ3ah52lfGiNpk'
+В httpx для работы с query-параметрами используется аргумент params. Он принимает словарь, который автоматически преобразуется в query-строку.
+
+Пример:
+
+params = {"userId": "12345"}
+Этот словарь будет преобразован в строку запроса:
+
+?userId=12345
+3. Реализация API-клиента CoursesClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+
+
+class GetCoursesQueryDict(TypedDict):
+    """
+    Описание структуры запроса на получение списка курсов.
+    """
+    userId: str
+
+
+class CreateCourseRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание курса.
+    """
+    title: str
+    maxScore: int
+    minScore: int
+    description: str
+    estimatedTime: str
+    previewFileId: str
+    createdByUserId: str
+
+
+class UpdateCourseRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление курса.
+    """
+    title: str | None
+    maxScore: int | None
+    minScore: int | None
+    description: str | None
+    estimatedTime: str | None
+
+
+class CoursesClient(APIClient):
+    """
+    Клиент для работы с /api/v1/courses
+    """
+
+    def get_courses_api(self, query: GetCoursesQueryDict) -> Response:
+        """
+        Метод получения списка курсов.
+
+        :param query: Словарь с userId.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get("/api/v1/courses", params=query)
+
+    def get_course_api(self, course_id: str) -> Response:
+        """
+        Метод получения курса.
+
+        :param course_id: Идентификатор курса.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/courses/{course_id}")
+
+    def create_course_api(self, request: CreateCourseRequestDict) -> Response:
+        """
+        Метод создания курса.
+
+        :param request: Словарь с title, maxScore, minScore, description, estimatedTime, 
+        previewFileId, createdByUserId.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/courses", json=request)
+
+    def update_course_api(self, course_id: str, request: UpdateCourseRequestDict) -> Response:
+        """
+        Метод обновления курса.
+
+        :param course_id: Идентификатор курса.
+        :param request: Словарь с title, maxScore, minScore, description, estimatedTime.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.patch(f"/api/v1/courses/{course_id}", json=request)
+
+    def delete_course_api(self, course_id: str) -> Response:
+        """
+        Метод удаления курса.
+
+        :param course_id: Идентификатор курса.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/courses/{course_id}")
+Рассмотрим ключевые моменты:
+
+GetCoursesQueryDict. Этот TypedDict описывает структуру запроса для получения списка курсов:
+
+class GetCoursesQueryDict(TypedDict):
+    """
+    Описание структуры запроса на получение списка курсов.
+    """
+    userId: str
+То есть GET /api/v1/courses принимает userId как query-параметр.
+
+Метод get_courses_api. Этот метод выполняет GET-запрос к /api/v1/courses, передавая userId в качестве query-параметра:
+def get_courses_api(self, query: GetCoursesQueryDict) -> Response:
+    """
+    Метод получения списка курсов.
+
+    :param query: Словарь с userId.
+    :return: Ответ от сервера в виде объекта httpx.Response
+    """
+    return self.get("/api/v1/courses", params=query)
+Аргумент params=query передает данные в query-строку, например:
+/api/v1/courses?userId=12345

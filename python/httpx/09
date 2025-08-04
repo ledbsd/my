@@ -1,0 +1,172 @@
+Практика реализации API клиентов: /api/v1/users
+Ссылки:
+
+Структурные паттерны проектирования
+Паттерн проектирования Facade
+В этом уроке мы будем активно практиковаться в реализации API клиентов. Но прежде чем приступить к написанию кода, давайте разберемся, какой паттерн проектирования лежит в основе API клиентов.
+
+API клиент как паттерн Facade
+При реализации API клиентов мы неосознанно применяем паттерн Facade. Этот паттерн предназначен для упрощения взаимодействия с сложными системами, предоставляя удобный интерфейс для работы.
+
+Применение Facade позволяет:
+
+Скрывать сложность внутренних API вызовов за простым и понятным интерфейсом.
+Обеспечивать инкапсуляцию логики взаимодействия с API внутри одного класса.
+Снижать зависимость кода от деталей реализации API, что делает код более гибким и удобным в поддержке.
+Пример применения Facade в API клиентах:
+
+Допустим, у нас есть API с несколькими эндпоинтами:
+
+GET /api/v1/users/{user_id} – получение информации о пользователе.
+PATCH /api/v1/users/{user_id} – обновление информации о пользователе.
+DELETE /api/v1/users/{user_id} – удаление пользователя.
+Без паттерна Facade клиентский код мог бы выглядеть следующим образом:
+
+import httpx
+
+response = httpx.get(f"https://example.com/api/v1/users/{user_id}")
+user_data = response.json()
+
+update_data = {"email": "new@example.com"}
+response = httpx.patch(f"https://example.com/api/v1/users/{user_id}", json=update_data)
+
+response = httpx.delete(f"https://example.com/api/v1/users/{user_id}")
+Это создает дублирование логики, усложняет поддержку и не дает единообразного интерфейса.
+
+С паттерном Facade все API вызовы инкапсулируются в один класс:
+
+class UsersClient:
+    def __init__(self, base_url: str):
+        self.client = httpx.Client(base_url=base_url)
+
+    def get_user(self, user_id: str):
+        return self.client.get(f"/api/v1/users/{user_id}")
+
+    def update_user(self, user_id: str, data: dict):
+        return self.client.patch(f"/api/v1/users/{user_id}", json=data)
+
+    def delete_user(self, user_id: str):
+        return self.client.delete(f"/api/v1/users/{user_id}")
+Теперь клиентский код выглядит чисто и понятно:
+
+client = UsersClient(base_url="https://example.com")
+
+response = client.get_user(user_id)
+response = client.update_user(user_id, {"email": "new@example.com"})
+response = client.delete_user(user_id)
+Паттерн Facade делает код структурированным, читабельным и удобным в использовании.
+
+Реализация PrivateUsersClient
+Теперь давайте перейдем к имплементации PrivateUsersClient, который будет выполнять запросы к /api/v1/users, но уже к приватным эндпоинтам, требующим авторизации.
+
+Важно! Почему используется название PrivateUsersClient, объяснялось в домашнем задании к уроку "Знакомство с API клиентами".
+
+Методы PrivateUsersClient:
+
+get_user_me_api – GET /api/v1/users/me. Получение информации о текущем пользователе.
+get_user_api – GET /api/v1/users/{user_id}. Получение информации о пользователе по user_id.
+update_user_api – PATCH /api/v1/users/{user_id}. Обновление данных пользователя.
+delete_user_api – DELETE /api/v1/users/{user_id}. Удаление пользователя.
+1. Создаем файл private_users_client.py
+В папке ./clients/users создадим файл private_users_client.py:
+
+.
+└── autotests-api/
+    └── clients/
+        ├── __init__.py
+        ├── api_client.py
+        └── users/
+            ├── __init__.py
+            └── private_users_client.py
+2. Реализация класса PrivateUsersClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+
+
+class UpdateUserRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление пользователя.
+    """
+    email: str | None
+    lastName: str | None
+    firstName: str | None
+    middleName: str | None
+
+
+class PrivateUsersClient(APIClient):
+    """
+    Клиент для работы с /api/v1/users
+    """
+
+    def get_user_me_api(self) -> Response:
+        """
+        Метод получения текущего пользователя.
+
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get("/api/v1/users/me")
+
+    def get_user_api(self, user_id: str) -> Response:
+        """
+        Метод получения пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/users/{user_id}")
+
+    def update_user_api(self, user_id: str, request: UpdateUserRequestDict) -> Response:
+        """
+        Метод обновления пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :param request: Словарь с email, lastName, firstName, middleName.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.patch(f"/api/v1/users/{user_id}", json=request)
+
+    def delete_user_api(self, user_id: str) -> Response:
+        """
+        Метод удаления пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/users/{user_id}")
+Комментарий по коду
+
+Структура кода
+
+PrivateUsersClient наследуется от APIClient, что позволяет использовать базовые HTTP-методы (get, patch, delete).
+Каждый метод выполняет конкретный запрос к приватным эндпоинтам /api/v1/users.
+Аннотации типов
+
+Используется TypedDict (UpdateUserRequestDict) для описания структуры запроса в update_user_api.
+Возвращаемые значения методов аннотированы как httpx.Response.
+Динамическое формирование URL
+
+Методы, принимающие user_id, подставляют его в строку запроса:
+return self.get(f"/api/v1/users/{user_id}")
+Это позволяет гибко работать с API.
+Документирование
+
+Каждый метод содержит docstring с описанием входных параметров и возвращаемого значения.
+class UpdateUserRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление пользователя.
+    """
+    email: str | None
+    lastName: str | None
+    firstName: str | None
+    middleName: str | None
+Обратите внимание, что значения полей для обновления аннотированы как str | None. Почему так?
+
+Дело в том, что обновление пользователя выполняется с помощью PATCH-запроса. В отличие от PUT, который требует передавать все поля, PATCH обновляет только те данные, которые указаны в запросе. Если какое-либо поле не передано, оно останется неизменным.
+
+Таким образом, использование str | None позволяет явно указать, что каждое поле может либо содержать строковое значение (новое значение для обновления), либо быть None, что означает отсутствие обновления для данного поля.
+
+Заключение
+На этом реализация PrivateUsersClient завершена. Теперь у нас есть структурированный, документированный и удобный API клиент для приватных эндпоинтов /api/v1/users.

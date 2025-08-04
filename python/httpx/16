@@ -1,0 +1,487 @@
+Практикуемся в использовании API-клиентов
+Продолжаем практиковаться в использовании API-клиентов. В этом шаге мы реализуем создание курса с использованием API-клиентов. Для этого нам потребуется:
+
+Создать пользователя с помощью PublicUsersClient.create_user.
+
+Загрузить файл на сервер с использованием FilesClient.create_file (метод create_file нам нужно будет реализовать).
+
+Создать курс с помощью CoursesClient.create_course (метод create_course также необходимо реализовать).
+
+1. Дорабатываем FilesClient
+В первую очередь добавим метод create_file, который будет загружать файл и возвращать JSON-структуру:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.private_http_builder import AuthenticationUserDict, get_private_http_client
+
+
+# Добавили описание структуры файла
+class File(TypedDict):
+    """
+    Описание структуры файла.
+    """
+    id: str
+    url: str
+    filename: str
+    directory: str
+
+
+class CreateFileRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание файла.
+    """
+    filename: str
+    directory: str
+    upload_file: str
+
+
+# Добавили описание структуры запроса на создание файла
+class CreateFileResponseDict(TypedDict):
+    """
+    Описание структуры ответа создания файла.
+    """
+    file: File
+
+
+class FilesClient(APIClient):
+    """
+    Клиент для работы с /api/v1/files
+    """
+
+    def get_file_api(self, file_id: str) -> Response:
+        """
+        Метод получения файла.
+
+        :param file_id: Идентификатор файла.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/files/{file_id}")
+
+    def create_file_api(self, request: CreateFileRequestDict) -> Response:
+        """
+        Метод создания файла.
+
+        :param request: Словарь с filename, directory, upload_file.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post(
+            "/api/v1/files",
+            data=request,
+            files={"upload_file": open(request['upload_file'], 'rb')}
+        )
+
+    def delete_file_api(self, file_id: str) -> Response:
+        """
+        Метод удаления файла.
+
+        :param file_id: Идентификатор файла.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/files/{file_id}")
+
+    # Добавили новый метод
+    def create_file(self, request: CreateFileRequestDict) -> CreateFileResponseDict:
+        response = self.create_file_api(request)
+        return response.json()
+
+
+def get_files_client(user: AuthenticationUserDict) -> FilesClient:
+    """
+    Функция создаёт экземпляр FilesClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию FilesClient.
+    """
+    return FilesClient(client=get_private_http_client(user))
+2. Дорабатываем CoursesClient
+Теперь реализуем метод create_course:
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.files.files_client import File
+from clients.private_http_builder import AuthenticationUserDict, get_private_http_client
+from clients.users.private_users_client import User
+
+
+# Добавили описание структуры курса
+class Course(TypedDict):
+    """
+    Описание структуры курса.
+    """
+    id: str
+    title: str
+    maxScore: int
+    minScore: int
+    description: str
+    previewFile: File  # Вложенная структура файла
+    estimatedTime: str
+    createdByUser: User  # Вложенная структура пользователя
+
+
+class GetCoursesQueryDict(TypedDict):
+    """
+    Описание структуры запроса на получение списка курсов.
+    """
+    userId: str
+
+
+class CreateCourseRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание курса.
+    """
+    title: str
+    maxScore: int
+    minScore: int
+    description: str
+    estimatedTime: str
+    previewFileId: str
+    createdByUserId: str
+
+
+# Добавили описание структуры запроса на создание курса
+class CreateCourseResponseDict(TypedDict):
+    """
+    Описание структуры ответа создания курса.
+    """
+    course: Course
+
+
+class UpdateCourseRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление курса.
+    """
+    title: str | None
+    maxScore: int | None
+    minScore: int | None
+    description: str | None
+    estimatedTime: str | None
+
+
+class CoursesClient(APIClient):
+    """
+    Клиент для работы с /api/v1/courses
+    """
+
+    def get_courses_api(self, query: GetCoursesQueryDict) -> Response:
+        """
+        Метод получения списка курсов.
+
+        :param query: Словарь с userId.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get("/api/v1/courses", params=query)
+
+    def get_course_api(self, course_id: str) -> Response:
+        """
+        Метод получения курса.
+
+        :param course_id: Идентификатор курса.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/courses/{course_id}")
+
+    def create_course_api(self, request: CreateCourseRequestDict) -> Response:
+        """
+        Метод создания курса.
+
+        :param request: Словарь с title, maxScore, minScore, description, estimatedTime,
+        previewFileId, createdByUserId.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/courses", json=request)
+
+    def update_course_api(self, course_id: str, request: UpdateCourseRequestDict) -> Response:
+        """
+        Метод обновления курса.
+
+        :param course_id: Идентификатор курса.
+        :param request: Словарь с title, maxScore, minScore, description, estimatedTime.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.patch(f"/api/v1/courses/{course_id}", json=request)
+
+    def delete_course_api(self, course_id: str) -> Response:
+        """
+        Метод удаления курса.
+
+        :param course_id: Идентификатор курса.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/courses/{course_id}")
+
+    # Добавили новый метод
+    def create_course(self, request: CreateCourseRequestDict) -> CreateCourseResponseDict:
+        response = self.create_course_api(request)
+        return response.json()
+
+
+def get_courses_client(user: AuthenticationUserDict) -> CoursesClient:
+    """
+    Функция создаёт экземпляр CoursesClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию CoursesClient.
+    """
+    return CoursesClient(client=get_private_http_client(user))
+Вложенные модели в API-ответах
+При работе с API важно понимать, что данные могут содержать вложенные объекты. Это значит, что один объект может включать в себя другие структуры, а не только простые значения (числа, строки и т. д.).
+
+В нашем случае структура Course содержит два вложенных объекта:
+
+previewFile — информация о файле (обложке курса).
+createdByUser — информация о пользователе, который создал курс.
+Вот как это выглядит в Python-классе:
+
+class Course(TypedDict):
+    """
+    Описание структуры курса.
+    """
+    id: str
+    title: str
+    maxScore: int
+    minScore: int
+    description: str
+    previewFile: File  # Вложенная структура файла
+    estimatedTime: str
+    createdByUser: User  # Вложенная структура пользователя
+А вот пример реального JSON-ответа от API:
+
+{
+  "course": {
+    "id": "string",
+    "title": "string",
+    "maxScore": 0,
+    "minScore": 0,
+    "description": "string",
+    "previewFile": {
+      "id": "string",
+      "filename": "string",
+      "directory": "string",
+      "url": "https://example.com/"
+    },
+    "estimatedTime": "string",
+    "createdByUser": {
+      "id": "string",
+      "email": "user@example.com",
+      "lastName": "string",
+      "firstName": "string",
+      "middleName": "string"
+    }
+  }
+}
+Использование вложенных моделей позволяет описывать сложные структуры API-ответов и упрощает работу с данными внутри Python-кода.
+
+Зачем нужны вложенные структуры?
+Они отражают реальные связи между объектами.
+Например, курс связан с пользователем, который его создал, и файлом, который служит его обложкой.
+
+Они позволяют работать с данными более удобно.
+Вместо того чтобы получать previewFileId и createdByUserId и затем делать дополнительные запросы, API сразу отдает полную информацию.
+
+Они упрощают обработку данных в Python-коде.
+Вместо того чтобы вручную объединять данные из разных частей, мы сразу получаем удобные структуры.
+
+Как работать с вложенными объектами в Python?
+Допустим, у нас есть API-ответ, и мы хотим извлечь из него данные.
+
+response = {
+    "course": {
+        "id": "123",
+        "title": "Python API",
+        "maxScore": 100,
+        "minScore": 10,
+        "description": "Курс по API на Python",
+        "previewFile": {
+            "id": "456",
+            "filename": "image.png",
+            "directory": "courses",
+            "url": "https://example.com/image.png"
+        },
+        "estimatedTime": "2 недели",
+        "createdByUser": {
+            "id": "789",
+            "email": "user@example.com",
+            "lastName": "Иванов",
+            "firstName": "Иван",
+            "middleName": "Иванович"
+        }
+    }
+}
+Чтобы, например, получить URL файла обложки, можно сделать так:
+
+course_data = response["course"]
+preview_file_url = course_data["previewFile"]["url"]
+print("Ссылка на обложку курса:", preview_file_url)
+# Вывод: Ссылка на обложку курса: https://example.com/image.png
+А чтобы получить имя автора курса:
+
+author_name = f'{course_data["createdByUser"]["firstName"]} {course_data["createdByUser"]["lastName"]}'
+print("Курс создал:", author_name)
+# Вывод: Курс создал: Иван Иванов
+Возможные ошибки при работе с вложенными объектами
+Ошибка KeyError (ключ отсутствует)
+Если API в каком-то ответе не вернет previewFile, следующий код вызовет ошибку:
+
+preview_file_url = course_data["previewFile"]["url"]
+Как избежать? Использовать get(), чтобы проверить наличие ключа:
+
+preview_file_url = course_data.get("previewFile", {}).get("url", "Файл отсутствует")
+print(preview_file_url)
+Ошибка TypeError (работа с None)
+Если API вернет previewFile: null, то None["url"] вызовет ошибку. Поэтому лучше делать проверку:
+
+preview_file = course_data.get("previewFile")
+if preview_file:
+    preview_file_url = preview_file.get("url", "URL отсутствует")
+else:
+    preview_file_url = "Файл не загружен"
+Проблемы с вложенными структурами
+Если вложенный объект иногда имеет другую структуру (например, previewFile может быть null), стоит всегда тестировать API-ответы перед написанием кода.
+
+Использование вложенных моделей позволяет описывать сложные структуры API-ответов, делает данные более логичными и удобными для работы. Однако при их обработке важно учитывать возможные ошибки, связанные с отсутствующими или null-значениями.
+
+3. Реализация скрипта создания курса
+Теперь, когда все подготовлено, давайте реализуем скрипт для создания курса.
+
+3.1 Создание файла api_client_create_course.py
+В корневой директории проекта autotests-api создадим файл api_client_create_course.py:
+
+.
+└── autotests-api/
+    └── api_client_create_course.py
+3.2 Реализация скрипта
+Теперь мы можем реализовать скрипт создания курса. Разберем его по шагам:
+
+from clients.courses.courses_client import get_courses_client, CreateCourseRequestDict
+from clients.files.files_client import get_files_client, CreateFileRequestDict
+from clients.private_http_builder import AuthenticationUserDict
+from clients.users.public_users_client import get_public_users_client, CreateUserRequestDict
+from tools.fakers import get_random_email
+
+public_users_client = get_public_users_client()
+
+# Создаем пользователя
+create_user_request = CreateUserRequestDict(
+    email=get_random_email(),
+    password="string",
+    lastName="string",
+    firstName="string",
+    middleName="string"
+)
+create_user_response = public_users_client.create_user(create_user_request)
+
+# Инициализируем клиенты
+authentication_user = AuthenticationUserDict(
+    email=create_user_request['email'],
+    password=create_user_request['password']
+)
+files_client = get_files_client(authentication_user)
+courses_client = get_courses_client(authentication_user)
+
+# Загружаем файл
+create_file_request = CreateFileRequestDict(
+    filename="image.png",
+    directory="courses",
+    upload_file="./testdata/files/image.png"
+)
+create_file_response = files_client.create_file(create_file_request)
+print('Create file data:', create_file_response)
+
+# Создаем курс
+create_course_request = CreateCourseRequestDict(
+    title="Python",
+    maxScore=100,
+    minScore=10,
+    description="Python API course",
+    estimatedTime="2 weeks",
+    previewFileId=create_file_response['file']['id'],
+    createdByUserId=create_user_response['user']['id']
+)
+create_course_response = courses_client.create_course(create_course_request)
+print('Create course data:', create_course_response)
+Создание пользователя
+
+public_users_client = get_public_users_client()
+
+# Создаем пользователя
+create_user_request = CreateUserRequestDict(
+    email=get_random_email(),
+    password="string",
+    lastName="string",
+    firstName="string",
+    middleName="string"
+)
+create_user_response = public_users_client.create_user(create_user_request)
+Здесь мы:
+
+Инициализируем клиент public_users_client для работы с пользователями.
+Формируем create_user_request — запрос на создание пользователя с случайным email.
+Отправляем запрос через public_users_client.create_user(create_user_request).
+Сохраняем ответ в create_user_response, чтобы далее использовать ID созданного пользователя.
+Аутентификация пользователя и инициализация клиентов
+# Инициализируем клиенты
+authentication_user = AuthenticationUserDict(
+    email=create_user_request['email'],
+    password=create_user_request['password']
+)
+files_client = get_files_client(authentication_user)
+courses_client = get_courses_client(authentication_user)
+Здесь мы:
+
+Создаем объект authentication_user с email и паролем нового пользователя.
+Инициализируем files_client, который будет использоваться для загрузки файлов.
+Инициализируем courses_client, который нужен для работы с курсами.
+Загрузка файла
+# Загружаем файл
+create_file_request = CreateFileRequestDict(
+    filename="image.png",
+    directory="courses",
+    upload_file="./testdata/files/image.png"
+)
+create_file_response = files_client.create_file(create_file_request)
+print('Create file data:', create_file_response)
+Здесь мы:
+
+Формируем create_file_request — запрос на загрузку файла, указывая:
+filename="image.png" – имя файла.
+directory="courses" – каталог, куда загружается файл.
+upload_file="./testdata/files/image.png" – путь к файлу на локальной машине.
+Отправляем запрос на загрузку через files_client.create_file(create_file_request).
+Выводим в консоль данные о загруженном файле.
+Создание курса
+# Создаем курс
+create_course_request = CreateCourseRequestDict(
+    title="Python",
+    maxScore=100,
+    minScore=10,
+    description="Python API course",
+    estimatedTime="2 weeks",
+    previewFileId=create_file_response['file']['id'],
+    createdByUserId=create_user_response['user']['id']
+)
+create_course_response = courses_client.create_course(create_course_request)
+print('Create course data:', create_course_response)
+Здесь мы:
+
+Формируем create_course_request — запрос на создание курса, передавая:
+title="Python" – название курса.
+maxScore=100, minScore=10 – максимальный и минимальный баллы.
+description="Python API course" – описание курса.
+estimatedTime="2 weeks" – предполагаемая длительность.
+previewFileId=create_file_response['file']['id'] – ID загруженного файла, который будет обложкой курса.
+createdByUserId=create_user_response['user']['id'] – ID пользователя, который создаёт курс.
+Отправляем запрос через courses_client.create_course(create_course_request).
+Выводим в консоль данные о созданном курсе.
+3.3 Запускаем скрипт
+Теперь запустим скрипт, чтобы убедиться, что всё работает корректно:
+
+python -m api_client_create_course
+При успешном выполнении скрипта в консоли появится вывод, содержащий информацию о загруженном файле и созданном курсе:
+
+Create file data: {'file': {'id': '6893c23d-c06d-474d-941a-fc4837127043', 'url': 'http://localhost:8000/static/tests/56a8beaf-52f4-434c-abde-a8556db5dc1e.png', 'filename': '56a8beaf-52f4-434c-abde-a8556db5dc1e.png', 'directory': 'tests'}}
+Create course data: {'course': {'id': '99b14e16-e245-4b0a-8216-1222841f1345', 'title': 'Claim pass on.', 'maxScore': 85, 'minScore': 2, 'description': 'Kitchen else option edge growth. Husband make even fall. Describe particular owner natural how election without.', 'previewFile': {'id': '6893c23d-c06d-474d-941a-fc4837127043', 'url': 'http://localhost:8000/static/tests/56a8beaf-52f4-434c-abde-a8556db5dc1e.png', 'filename': '56a8beaf-52f4-434c-abde-a8556db5dc1e.png', 'directory': 'tests'}, 'estimatedTime': '3 weeks', 'createdByUser': {'id': '002b5f4f-840c-4e9a-95af-0e352336815c', 'email': 'mmiddleton@example.com', 'lastName': 'Murray', 'firstName': 'Joe', 'middleName': 'Mary'}}}
+Теперь у нас есть полноценный скрипт, который автоматически создаёт пользователя, загружает файл и создает курс! 

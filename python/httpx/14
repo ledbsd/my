@@ -1,0 +1,400 @@
+Реализуем private builder для HTTP-клиента
+Теперь нам необходимо реализовать приватный клиент, который будет использоваться для выполнения запросов к API, требующих авторизации. Для успешного выполнения таких запросов необходимо сначала пройти аутентификацию и получить авторизационный токен.
+
+1. Дорабатываем клиент AuthenticationClient
+Добавим в AuthenticationClient метод login. У нас уже есть метод login_api, но login должен будет вызвать login_api, извлечь JSON-ответ и вернуть его.
+
+Также добавим аннотации типов данных, которые помогут структурировать запросы и ответы при аутентификации.
+
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.public_http_builder import get_public_http_client
+
+
+class Token(TypedDict):  # Добавили структуру с токенами аутентификации
+    """
+    Описание структуры аутентификационных токенов.
+    """
+    tokenType: str
+    accessToken: str
+    refreshToken: str
+
+
+class LoginRequestDict(TypedDict):
+    """
+    Описание структуры запроса на аутентификацию.
+    """
+    email: str
+    password: str
+
+
+class LoginResponseDict(TypedDict):  # Добавили структуру ответа аутентификации
+    """
+    Описание структуры ответа аутентификации.
+    """
+    token: Token
+
+
+class RefreshRequestDict(TypedDict):
+    """
+    Описание структуры запроса для обновления токена.
+    """
+    refreshToken: str
+
+
+class AuthenticationClient(APIClient):
+    """
+    Клиент для работы с /api/v1/authentication
+    """
+
+    def login_api(self, request: LoginRequestDict) -> Response:
+        """
+        Метод выполняет аутентификацию пользователя.
+
+        :param request: Словарь с email и password.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/login", json=request)
+
+    def refresh_api(self, request: RefreshRequestDict) -> Response:
+        """
+        Метод обновляет токен авторизации.
+
+        :param request: Словарь с refreshToken.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/authentication/refresh", json=request)
+
+    # Добавили метод login
+    def login(self, request: LoginRequestDict) -> LoginResponseDict:
+        response = self.login_api(request)  # Отправляем запрос на аутентификацию
+        return response.json()  # Извлекаем JSON из ответа
+
+
+def get_authentication_client() -> AuthenticationClient:
+    """
+    Функция создаёт экземпляр AuthenticationClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию AuthenticationClient.
+    """
+    return AuthenticationClient(client=get_public_http_client())
+Что было добавлено в коде?
+
+Структуры данных:
+
+Token — содержит токены (accessToken, refreshToken), необходимые для авторизации.
+LoginResponseDict — структура ответа с токенами после успешной аутентификации.
+Метод login(request: LoginRequestDict) -> LoginResponseDict:
+
+Вызывает login_api, отправляет запрос на сервер.
+Получает JSON-ответ и возвращает его в виде LoginResponseDict.
+Теперь мы можем использовать метод login напрямую для получения токенов авторизации.
+
+2. Создаем файл private_http_builder.py
+Теперь создадим новый файл private_http_builder.py в папке clients, который будет отвечать за создание приватного HTTP-клиента с авторизацией.
+
+.
+└── autotests-api/
+    └── clients/
+        ├── __init__.py
+        ├── api_client.py
+        ├── public_http_builder.py
+        └── private_http_builder.py
+3. Создание builder
+Теперь реализуем private builder, который будет создавать httpx.Client с авторизацией.
+
+from typing import TypedDict
+
+from httpx import Client
+
+from clients.authentication.authentication_client import get_authentication_client, LoginRequestDict
+
+
+class AuthenticationUserDict(TypedDict):  # Структура данных пользователя для авторизации
+    email: str
+    password: str
+
+
+# Создаем private builder
+def get_private_http_client(user: AuthenticationUserDict) -> Client:
+    """
+    Функция создаёт экземпляр httpx.Client с аутентификацией пользователя.
+
+    :param user: Объект AuthenticationUserSchema с email и паролем пользователя.
+    :return: Готовый к использованию объект httpx.Client с установленным заголовком Authorization.
+    """
+    # Инициализируем AuthenticationClient для аутентификации
+    authentication_client = get_authentication_client()
+
+    # Инициализируем запрос на аутентификацию
+    login_request = LoginRequestDict(email=user['email'], password=user['password'])
+    # Выполняем POST запрос и аутентифицируемся
+    login_response = authentication_client.login(login_request)
+
+    return Client(
+        timeout=100,
+        base_url="http://localhost:8000",
+        # Добавляем заголовок авторизации
+        headers={"Authorization": f"Bearer {login_response['token']['accessToken']}"}
+    )
+Что делает этот код?
+
+Структура AuthenticationUserDict:
+
+Описывает учетные данные пользователя (email, password), необходимые для аутентификации.
+Функция get_private_http_client(user: AuthenticationUserDict) -> Client:
+
+Получает экземпляр AuthenticationClient через get_authentication_client().
+Формирует запрос login_request с email и password.
+Выполняет вход (login), получает токен.
+Создает httpx.Client, указывая:
+timeout=100 — тайм-аут запросов.
+base_url="http://localhost:8000" — базовый URL.
+Заголовок Authorization: Bearer {accessToken} для авторизованных запросов.
+Таким образом, этот builder позволяет создавать httpx.Client с авторизацией для разных пользователей.
+
+4. Используем builder
+Теперь интегрируем private builder в клиенты, которые требуют авторизации.
+
+4.1. Добавляем builder в PrivateUsersClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.private_http_builder import get_private_http_client, AuthenticationUserDict
+
+
+class UpdateUserRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление пользователя.
+    """
+    email: str | None
+    lastName: str | None
+    firstName: str | None
+    middleName: str | None
+
+
+class PrivateUsersClient(APIClient):
+    """
+    Клиент для работы с /api/v1/users
+    """
+
+    def get_user_me_api(self) -> Response:
+        """
+        Метод получения текущего пользователя.
+
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get("/api/v1/users/me")
+
+    def get_user_api(self, user_id: str) -> Response:
+        """
+        Метод получения пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/users/{user_id}")
+
+    def update_user_api(self, user_id: str, request: UpdateUserRequestDict) -> Response:
+        """
+        Метод обновления пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :param request: Словарь с email, lastName, firstName, middleName.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.patch(f"/api/v1/users/{user_id}", json=request)
+
+    def delete_user_api(self, user_id: str) -> Response:
+        """
+        Метод удаления пользователя по идентификатору.
+
+        :param user_id: Идентификатор пользователя.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/users/{user_id}")
+
+
+# Добавляем builder для PrivateUsersClient
+def get_private_users_client(user: AuthenticationUserDict) -> PrivateUsersClient:
+    """
+    Функция создаёт экземпляр PrivateUsersClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию PrivateUsersClient.
+    """
+    return PrivateUsersClient(client=get_private_http_client(user))
+Что изменилось?
+
+Добавлен get_private_users_client, который создает PrivateUsersClient с авторизацией.
+Принимает user: AuthenticationUserDict, чтобы клиент использовал нужного пользователя для аутентификации.
+4.2. Добавляем builder в FilesClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.private_http_builder import AuthenticationUserDict, get_private_http_client
+
+
+class CreateFileRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание файла.
+    """
+    filename: str
+    directory: str
+    upload_file: str
+
+
+class FilesClient(APIClient):
+    """
+    Клиент для работы с /api/v1/files
+    """
+
+    def get_file_api(self, file_id: str) -> Response:
+        """
+        Метод получения файла.
+
+        :param file_id: Идентификатор файла.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/files/{file_id}")
+
+    def create_file_api(self, request: CreateFileRequestDict) -> Response:
+        """
+        Метод создания файла.
+
+        :param request: Словарь с filename, directory, upload_file.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post(
+            "/api/v1/files",
+            data=request,
+            files={"upload_file": open(request['upload_file'], 'rb')}
+        )
+
+    def delete_file_api(self, file_id: str) -> Response:
+        """
+        Метод удаления файла.
+
+        :param file_id: Идентификатор файла.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/files/{file_id}")
+
+
+# Добавляем builder для FilesClient
+def get_files_client(user: AuthenticationUserDict) -> FilesClient:
+    """
+    Функция создаёт экземпляр FilesClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию FilesClient.
+    """
+    return FilesClient(client=get_private_http_client(user))
+4.3. Добавляем builder в CoursesClient
+from typing import TypedDict
+
+from httpx import Response
+
+from clients.api_client import APIClient
+from clients.private_http_builder import AuthenticationUserDict, get_private_http_client
+
+
+class GetCoursesQueryDict(TypedDict):
+    """
+    Описание структуры запроса на получение списка курсов.
+    """
+    userId: str
+
+
+class CreateCourseRequestDict(TypedDict):
+    """
+    Описание структуры запроса на создание курса.
+    """
+    title: str
+    maxScore: int
+    minScore: int
+    description: str
+    estimatedTime: str
+    previewFileId: str
+    createdByUserId: str
+
+
+class UpdateCourseRequestDict(TypedDict):
+    """
+    Описание структуры запроса на обновление курса.
+    """
+    title: str | None
+    maxScore: int | None
+    minScore: int | None
+    description: str | None
+    estimatedTime: str | None
+
+
+class CoursesClient(APIClient):
+    """
+    Клиент для работы с /api/v1/courses
+    """
+
+    def get_courses_api(self, query: GetCoursesQueryDict) -> Response:
+        """
+        Метод получения списка курсов.
+
+        :param query: Словарь с userId.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get("/api/v1/courses", params=query)
+
+    def get_course_api(self, course_id: str) -> Response:
+        """
+        Метод получения курса.
+
+        :param course_id: Идентификатор курса.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.get(f"/api/v1/courses/{course_id}")
+
+    def create_course_api(self, request: CreateCourseRequestDict) -> Response:
+        """
+        Метод создания курса.
+
+        :param request: Словарь с title, maxScore, minScore, description, estimatedTime,
+        previewFileId, createdByUserId.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.post("/api/v1/courses", json=request)
+
+    def update_course_api(self, course_id: str, request: UpdateCourseRequestDict) -> Response:
+        """
+        Метод обновления курса.
+
+        :param course_id: Идентификатор курса.
+        :param request: Словарь с title, maxScore, minScore, description, estimatedTime.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.patch(f"/api/v1/courses/{course_id}", json=request)
+
+    def delete_course_api(self, course_id: str) -> Response:
+        """
+        Метод удаления курса.
+
+        :param course_id: Идентификатор курса.
+        :return: Ответ от сервера в виде объекта httpx.Response
+        """
+        return self.delete(f"/api/v1/courses/{course_id}")
+
+
+# Добавляем builder для CoursesClient
+def get_courses_client(user: AuthenticationUserDict) -> CoursesClient:
+    """
+    Функция создаёт экземпляр CoursesClient с уже настроенным HTTP-клиентом.
+
+    :return: Готовый к использованию CoursesClient.
+    """
+    return CoursesClient(client=get_private_http_client(user))
+Заключение
+Таким образом, теперь можно работать с API, требующими авторизации, используя private builder, который автоматически получает токен и передает его в заголовках запроса. 

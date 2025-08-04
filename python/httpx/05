@@ -1,0 +1,107 @@
+Практикуемся в работе с HTTPX: получение пользователя
+Теперь давайте напишем скрипт для получения пользователя. Задача будет следующая:
+
+Необходимо выполнить POST запрос на эндпоинт /api/v1/users для создания нового пользователя.
+Затем выполняем POST запрос на эндпоинт /api/v1/authentication/login, чтобы аутентифицироваться с данными только что созданного пользователя.
+Далее с user_id нового пользователя и токеном необходимо выполнить запрос для получения пользователя через GET запрос на эндпоинт /api/v1/users/{user_id}, где user_id — это идентификатор пользователя, полученный на шаге 1.
+1. Создаем файл httpx_get_user.py
+В корне проекта autotests-api создадим файл httpx_get_user.py:
+
+.
+└── autotests-api/
+    └── httpx_get_user.py
+2. Добавим скрипт получение пользователя
+В первую очередь нам необходимо добавить код для создания пользователя — мы уже писали такой код ранее. Добавим его в файл httpx_get_user.py:
+
+import httpx
+
+from tools.fakers import get_random_email
+
+# Создаем пользователя
+create_user_payload = {
+    "email": get_random_email(),
+    "password": "string",
+    "lastName": "string",
+    "firstName": "string",
+    "middleName": "string"
+}
+create_user_response = httpx.post("http://localhost:8000/api/v1/users", json=create_user_payload)
+create_user_response_data = create_user_response.json()
+print('Create user data:', create_user_response_data)
+Теперь, после создания пользователя, необходимо пройти аутентификацию и получить авторизационные токены. Давайте добавим код для аутентификации:
+
+import httpx
+
+from tools.fakers import get_random_email
+
+# Создаем пользователя
+create_user_payload = {
+    "email": get_random_email(),
+    "password": "string",
+    "lastName": "string",
+    "firstName": "string",
+    "middleName": "string"
+}
+create_user_response = httpx.post("http://localhost:8000/api/v1/users", json=create_user_payload)
+create_user_response_data = create_user_response.json()
+print('Create user data:', create_user_response_data)
+
+# Проходим аутентификацию
+login_payload = {
+    "email": create_user_payload['email'],
+    "password": create_user_payload['password']
+}
+login_response = httpx.post("http://localhost:8000/api/v1/authentication/login", json=login_payload)
+login_response_data = login_response.json()
+print('Login data:', login_response_data)
+Теперь мы можем получить данные пользователя, сделав GET-запрос на эндпоинт /api/v1/users/{user_id}, который требует авторизации. Финальный скрипт будет выглядеть так:
+
+import httpx
+
+from tools.fakers import get_random_email
+
+# Создаем пользователя
+create_user_payload = {
+    "email": get_random_email(),
+    "password": "string",
+    "lastName": "string",
+    "firstName": "string",
+    "middleName": "string"
+}
+create_user_response = httpx.post("http://localhost:8000/api/v1/users", json=create_user_payload)
+create_user_response_data = create_user_response.json()
+print('Create user data:', create_user_response_data)
+
+# Проходим аутентификацию
+login_payload = {
+    "email": create_user_payload['email'],
+    "password": create_user_payload['password']
+}
+login_response = httpx.post("http://localhost:8000/api/v1/authentication/login", json=login_payload)
+login_response_data = login_response.json()
+print('Login data:', login_response_data)
+
+# Получаем данные пользователя
+get_user_headers = {
+    "Authorization": f"Bearer {login_response_data['token']['accessToken']}"
+}
+get_user_response = httpx.get(
+    f"http://localhost:8000/api/v1/users/{create_user_response_data['user']['id']}",
+    headers=get_user_headers
+)
+get_user_response_data = get_user_response.json()
+print('Get user data:', get_user_response_data)
+Обратите внимание на строку f"http://localhost:8000/api/v1/users/{create_user_response_data['user']['id']}". Тут мы берем user_id из ответа на создание пользователя. После создания пользователя в ответе возвращаются данные, включая его user_id.
+
+Также обратите внимание, что мы передаем заголовок для авторизации: "Authorization": f"Bearer {login_response_data['token']['accessToken']}". Авторизационные токены мы получили ранее и теперь используем их для получения данных пользователя.
+
+3. Запускаем скрипт
+Запустим скрипт httpx_get_user.py следующей командой:
+
+python -m httpx_get_user
+После запуска скрипта, при успешном выполнении мы получим следующий вывод в консоль:
+
+Create user data: {'user': {'id': '6ebc4ced-4d15-4908-ba23-e4a70cc49181', 'email': 'test.1740689560.32795@example.com', 'lastName': 'string', 'firstName': 'string', 'middleName': 'string'}}
+Login data: {'token': {'tokenType': 'bearer', 'accessToken': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHBpcmUiOiIyMDI1LTAyLTI3VDIxOjIyOjQwLjkxNDEwOSIsInVzZXJfaWQiOiI2ZWJjNGNlZC00ZDE1LTQ5MDgtYmEyMy1lNGE3MGNjNDkxODEifQ.QLOaw5f2Qnd9SpqBi5iOr4zSCSvVVIKQiP4N15yafCM', 'refreshToken': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHBpcmUiOiIyMDI1LTA0LTI4VDIwOjUyOjQwLjkxNDM0MiIsInVzZXJfaWQiOiI2ZWJjNGNlZC00ZDE1LTQ5MDgtYmEyMy1lNGE3MGNjNDkxODEifQ.QGMTLP_4EmF9GoijUQ8WCUdwgLfM4ZwJ-t0YVt3ymnE'}}
+Get user data: {'user': {'id': '6ebc4ced-4d15-4908-ba23-e4a70cc49181', 'email': 'test.1740689560.32795@example.com', 'lastName': 'string', 'firstName': 'string', 'middleName': 'string'}}
+На этом написание скрипта для получения пользователя завершено. Как вы видите, ничего сложного в этом нет. Главное — соблюдать последовательность действий и учитывать все необходимые данные.
