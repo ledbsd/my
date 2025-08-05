@@ -1,0 +1,107 @@
+Знакомство с pydantic-settings
+Ссылки:
+
+Официальная документация pydantic-settings
+Что такое pydantic-settings?
+pydantic-settings — это расширение библиотеки Pydantic, созданное специально для управления настройками проектов. Как и Pydantic, она поддерживает валидацию данных и использует аналогичный синтаксис, что делает её интуитивно понятной и мощной для работы с настройками.
+
+Можно сказать, что Pydantic и pydantic-settings — это две связанные библиотеки, но pydantic-settings имеет дополнительные возможности, такие как работа с переменными окружения и .env файлами.
+
+Почему использовать именно pydantic-settings?
+Есть несколько ключевых причин:
+
+Встроенная валидация типов данных. Как мы видели ранее, Pydantic умеет проверять типы данных. Это же работает и в pydantic-settings, что обеспечивает надёжность данных, например, при работе с настройками.
+Встроенные типы данных. pydantic-settings позволяет использовать встроенные типы Pydantic, такие как HttpUrl, EmailStr, FilePath, DirectoryPath, и другие. Это даёт возможность валидации специфичных типов данных, например URL или файлов.
+from pydantic import BaseModel, HttpUrl, ValidationError
+
+class MyModel(BaseModel):
+    url: HttpUrl
+
+m = MyModel(url='http://www.example.com')  
+print(m.url)
+#> http://www.example.com/
+
+try:
+    MyModel(url='ftp://invalid.url')
+except ValidationError as e:
+    print(e)
+    '''
+    1 validation error for MyModel
+    url
+      URL scheme should be 'http' or 'https' [type=url_scheme, input_value='ftp://invalid.url', input_type=str]
+    '''
+Работа с переменными окружения и .env файлами. pydantic-settings автоматически подхватывает переменные окружения и значения из .env файлов. Это упрощает настройку окружений, например, для разработки, тестирования и продакшена.
+Популярность и поддержка сообщества. Pydantic и pydantic-settings — широко используемые библиотеки с отличной документацией и активным сообществом разработчиков. У Pydantic более 23K звезд на GitHub на момент написания этого урока
+Установка pydantic-settings
+Для начала, установим библиотеку вместе с дополнительными валидаторами:
+
+pip install pydantic-settings
+ Создание файла config.py
+Теперь создадим файл config.py в корне нашего проекта:
+
+.
+└── autotests-api/
+    └── config.py
+Этот файл будет содержать все настройки нашего проекта. Начнём с создания базовой модели настроек:
+
+# config.py
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    pass
+ Как видите, здесь мы наследуемся от BaseSettings, что аналогично наследованию от BaseModel в Pydantic. Но BaseSettings адаптирован для работы с конфигурациями.
+
+Расширяем модель Settings
+Теперь давайте добавим необходимые настройки в нашу модель. Вот что нам понадобится:
+
+http_client — данные для настройки HTTP-клиента. В этом блоке хранятся основные параметры, такие как базовый URL API (адрес сервера для взаимодействия) и таймаут на выполнение запросов (максимальное время ожидания ответа). Обратите внимание, что параметр url будет иметь тип HttpUrl, что позволяет автоматически проверять корректность переданного значения.
+from pydantic import BaseModel, HttpUrl
+from pydantic_settings import BaseSettings
+
+
+class HTTPClientConfig(BaseModel):
+    url: HttpUrl
+    timeout: float
+Мы специально выделяем настройки HTTP-клиента в отдельную модель, а не добавляем их напрямую в Settings. Это связано с тем, что в реальных проектах автотесты могут взаимодействовать с несколькими сервисами, каждый из которых имеет свой URL. Разделение настроек позволяет избежать дублирования и делает код более гибким. Кроме того, если в будущем потребуется добавить новые параметры, такие как кастомные заголовки или стратегии повторных запросов, это можно будет сделать централизованно.
+
+test_data — тестовые данные, такие как файлы для тестов (тип FilePath).
+from pydantic import FilePath, BaseModel
+from pydantic_settings import BaseSettings
+
+
+class TestData(BaseModel):
+    image_png_file: FilePath
+Добавим эти поля в модель:
+
+from pydantic import BaseModel, HttpUrl, FilePath
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class HTTPClientConfig(BaseModel):
+    url: HttpUrl
+    timeout: float
+
+    @property
+    def client_url(self) -> str:
+        return str(self.url)
+
+
+class TestDataConfig(BaseModel):
+    image_png_file: FilePath
+
+
+class Settings(BaseSettings):
+    test_data: TestDataConfig
+    http_client: HTTPClientConfig
+Также обратите внимание, что в модели HTTPClientConfig добавлено свойство client_url. Это сделано специально, так как параметр url имеет тип HttpUrl, который предоставляет встроенную валидацию, гарантируя, что переданное значение действительно является корректным URL.
+
+Однако в некоторых случаях, например, при передаче URL в httpx.Client, требуется строковое представление адреса или объект httpx.URL. Поэтому, чтобы избежать необходимости вручную преобразовывать HttpUrl в строку каждый раз при использовании, мы заранее добавили свойство client_url. Оно автоматически конвертирует параметр url в строку, что упрощает работу с HTTP клиентом и делает код более удобочитаемым и безопасным.
+
+Валидация данных в модели
+Обратите внимание на встроенные типы Pydantic, такие как HttpUrl и FilePath. Они автоматически проверяют корректность данных:
+
+HttpUrl проверяет, что переданная строка является корректным URL.
+FilePath проверяют, что путь указывает на существующую директорию или файл.
+Следующие шаги
+Теперь у нас есть готовая модель настроек. На следующем шаге мы рассмотрим, как передавать значения в эту модель через переменные окружения или .env файл.

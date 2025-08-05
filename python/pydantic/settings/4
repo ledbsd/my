@@ -1,0 +1,203 @@
+Применение настроек в автотестах
+Теперь, когда настройки готовы, пришло время использовать их во всем проекте.
+
+1. Создание глобальной переменной settings
+Для использования настроек их нужно инициализировать. Сделаем это в файле config.py. В конце файла добавим глобальную переменную settings для инициализации настроек:
+
+from pydantic import BaseModel, HttpUrl, FilePath
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class HTTPClientConfig(BaseModel):
+    url: HttpUrl
+    timeout: float
+
+    @property
+    def client_url(self) -> str:
+        return str(self.url)
+
+
+class TestDataConfig(BaseModel):
+    image_png_file: FilePath
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        env_nested_delimiter=".",
+    )
+
+    test_data: TestDataConfig
+    http_client: HTTPClientConfig
+
+
+# Инициализируем настройки
+settings = Settings()
+Почему глобальная переменная? Возникает вопрос: почему мы добавили settings в глобальный скоуп, а не вынесли в фикстуру? Причина в том, что настройки понадобятся в очень многих местах, и передача фикстуры везде будет неудобной. Фикстура также имеет ограничения — ее нельзя использовать вне автотестов, например, в параметризации pytest.
+
+2. Применение настроек в get_public_http_client и get_private_http_client
+В нашем проекте есть две функции:
+
+get_public_http_client – создает экземпляр httpx.Client с базовыми настройками для работы с публичными API.
+get_private_http_client – создает httpx.Client, но с аутентификацией, используя учетные данные пользователя.
+Ранее эти функции содержали хардкод (жестко прописанные значения) для таймаутов и адреса сервера. Это не только усложняло поддержку кода, но и затрудняло его адаптацию под разные окружения. Теперь мы исправим это, заменив хардкод на использование настроек из settings.
+
+Рефакторинг get_public_http_client
+Исходная версия функции:
+
+from httpx import Client
+
+from clients.event_hooks import curl_event_hook
+
+
+def get_public_http_client() -> Client:
+    """
+    Функция создаёт экземпляр httpx.Client с базовыми настройками.
+
+    :return: Готовый к использованию объект httpx.Client.
+    """
+    return Client(
+        timeout=100,
+        base_url="http://localhost:8000",
+        event_hooks={"request": [curl_event_hook]}
+    )
+Здесь таймаут и адрес сервера были жестко прописаны (timeout=100, base_url="http://localhost:8000"), что делало код негибким. Теперь исправим это, используя settings, где все параметры централизованно хранятся и могут быть изменены через .env файл.
+
+Обновленный вариант get_public_http_client
+Файл /clients/public_http_builder.py:
+
+from httpx import Client
+
+from clients.event_hooks import curl_event_hook
+from config import settings  # Импортируем настройки
+
+
+def get_public_http_client() -> Client:
+    """
+    Функция создаёт экземпляр httpx.Client с базовыми настройками.
+
+    :return: Готовый к использованию объект httpx.Client.
+    """
+    return Client(
+        timeout=settings.http_client.timeout,  # Таймаут теперь берётся из настроек
+        base_url=settings.http_client.client_url,  # Базовый URL также из настроек
+        event_hooks={"request": [curl_event_hook]}
+    )
+Теперь, если в будущем нам потребуется изменить таймаут или базовый URL, достаточно будет скорректировать .env файл, и изменения автоматически применятся ко всем тестам.
+
+Рефакторинг get_private_http_client
+Аналогичным образом обновим get_private_http_client, который используется для работы с API, требующими аутентификации.
+
+Файл /clients/private_http_builder.py:
+
+from functools import lru_cache
+
+from httpx import Client
+from pydantic import BaseModel
+
+from clients.authentication.authentication_client import get_authentication_client
+from clients.authentication.authentication_schema import LoginRequestSchema
+from clients.event_hooks import curl_event_hook
+from config import settings  # Импортируем настройки
+
+
+class AuthenticationUserSchema(BaseModel, frozen=True):
+    email: str
+    password: str
+
+
+@lru_cache(maxsize=None)
+def get_private_http_client(user: AuthenticationUserSchema) -> Client:
+    authentication_client = get_authentication_client()
+
+    login_request = LoginRequestSchema(email=user.email, password=user.password)
+    login_response = authentication_client.login(login_request)
+
+    return Client(
+        timeout=settings.http_client.timeout,  # Используем значение таймаута из настроек
+        base_url=settings.http_client.client_url,  # Используем значение адреса сервера из настроек
+        headers={"Authorization": f"Bearer {login_response.token.access_token}"},
+        event_hooks={"request": [curl_event_hook]}
+    )
+Как и в get_public_http_client, мы избавились от хардкода и теперь используем настройки для:
+
+timeout
+base_url
+Это позволяет легко менять окружение и адаптировать тесты, просто обновляя .env файл.
+
+3. Применение настроек в assert_create_file_response
+Теперь применим настройки для функции assert_create_file_response, которая динамически формирует ссылку на файл.
+
+Рефакторинг assert_create_file_response
+Исходная версия функции:
+
+@allure.step("Check create file response")
+def assert_create_file_response(request: CreateFileRequestSchema, response: CreateFileResponseSchema):
+    """
+    Проверяет, что ответ на создание файла соответствует запросу.
+
+    :param request: Исходный запрос на создание файла.
+    :param response: Ответ API с данными файла.
+    :raises AssertionError: Если хотя бы одно поле не совпадает.
+    """
+    expected_url = f"http://localhost:8000/static/{request.directory}/{request.filename}"
+
+    assert_equal(str(response.file.url), expected_url, "url")
+    assert_equal(response.file.filename, request.filename, "filename")
+    assert_equal(response.file.directory, request.directory, "directory")
+Обновленный вариант assert_create_file_response
+Файл /tools/assertions/files.py:
+
+import allure
+
+from clients.errors_schema import ValidationErrorResponseSchema, ValidationErrorSchema, InternalErrorResponseSchema
+from clients.files.files_schema import CreateFileResponseSchema, CreateFileRequestSchema, FileSchema, \
+    GetFileResponseSchema
+from config import settings  # Импортируем настройки
+from tools.assertions.base import assert_equal
+from tools.assertions.errors import assert_validation_error_response, assert_internal_error_response
+
+
+@allure.step("Check create file response")
+def assert_create_file_response(request: CreateFileRequestSchema, response: CreateFileResponseSchema):
+    """
+    Проверяет, что ответ на создание файла соответствует запросу.
+
+    :param request: Исходный запрос на создание файла.
+    :param response: Ответ API с данными файла.
+    :raises AssertionError: Если хотя бы одно поле не совпадает.
+    """
+    # Используем значение хоста из настроек
+    expected_url = f"{settings.http_client.client_url}static/{request.directory}/{request.filename}"
+
+    assert_equal(str(response.file.url), expected_url, "url")
+    assert_equal(response.file.filename, request.filename, "filename")
+    assert_equal(response.file.directory, request.directory, "directory")
+
+
+# Остальной код без изменений
+Важно! Обратите внимание, как мы формируем ссылку:
+
+f"{settings.http_client.client_url}static/"
+Здесь между значением из настроек (settings.http_client.client_url) и добавляемым путем (static/) отсутствует дополнительный слэш (/).
+
+Например, если бы мы написали так:
+
+f"{settings.http_client.client_url}/static/"
+то в итоговой строке могло бы появиться два слэша подряд (//), что не всегда допустимо.
+
+Это сделано специально, так как при конвертации в строку pydantic.HttpUrl автоматически добавляет завершающий /, если его нет. Например, если client_url = "http://localhost:8000", то HttpUrl представит его как "http://localhost:8000/", что позволяет безопасно конкатенировать строки без добавления лишних символов.
+
+4. Тестирование
+После внесенных изменений необходимо убедиться, что все работает корректно. Для этого запустим автотесты:
+
+python -m pytest -m "regression"
+Все тесты должны успешно пройти.
+
+Промежуточный итог использования настроек
+Теперь все значения, которые могут изменяться (например, URL сервера, таймауты), вынесены в настройки. Это дает несколько преимуществ:
+
+Отсутствие хардкода – нет необходимости вручную прописывать адреса серверов или таймауты в коде.
+Гибкость – если адрес тестового сервера изменится, достаточно обновить .env, и изменения автоматически применятся в проекте.
+Поддерживаемость – код стал проще в сопровождении, а новые окружения можно добавлять без изменений в исходниках.
