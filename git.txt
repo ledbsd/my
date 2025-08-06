@@ -115,3 +115,8 @@
 
 удалить тэг с remote
 # git push origin --delete <tag>
+
+#------------------- .gitignore  ---------------#
+
+если .gitignore добавлен позже, перечитать мешает кеш. удаляем:
+# git rm -r --cached .
