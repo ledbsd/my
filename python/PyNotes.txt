@@ -1,5 +1,35 @@
- immutable objects - int, float, bool, str, tuple, complex
- mutable objects - list, set, dict
+В Python requests пакет автоматически отправляет следующие заголовки в GETзапросе:
+
+	'Host':  '[The host. Example: jacobpadilla.com]'
+	'User-Agent':  'python-requests/[package version]'
+	'Accept-Encoding':  'gzip, deflate'
+	'Accept':  '*/*'
+	'Connection':  'keep-alive'
+	
+	их нужно менять
+	
+	from fake_useragent import UserAgent
+	ua = UserAgent()
+	print(ua.safari)
+
+cписки
+	Python хранит указатель на начало массива и количество элементов в нём. 
+	Количество элементов хранится отдельно, поэтому функция len()также выполняется за время O(1) и не требует подсчёта элементов каждый раз.
+
+генераторы
+	beer_data = "recipeData.csv"
+	lines = (line for line in open(beer_data, encoding="ISO-8859-1"))
+	lists = (l.split(",") for l in lines)
+
+	# Take the column names out of the generator and store them, leaving only data
+	columns = next(lists)
+
+	# Take these columns and use them to create an informative dictionary
+	beerdicts = (dict(zip(columns, data)) for data in lists)
+
+
+immutable objects - int, float, bool, str, tuple, complex
+mutable objects - list, set, dict
 
 import
 	строка указывает, что можно импортировать
@@ -35,6 +65,8 @@ set
 	a = set()
 	a.discard(user)
 	a.add(user)
+	
+	пересечение списков: overlaps = set(a) & set(b)
 	
 
 context manager

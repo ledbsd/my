@@ -55,7 +55,7 @@
 		
 		class Cat:
 		def __init__(self, name):
-			self._name = name (если есть setter иначе _name)
+			self.name = name (если есть setter иначе _name)
 		
 		@property
 		def name(self):
@@ -68,7 +68,8 @@
 			self._name = new_value
 		! в __init__ надо вызывать уже setter, иначе проверку можно будет обойти при инициализации
 
-		- init уже вызывает setter!!!
+		- init уже вызывает setter!!! Фактически, каждый раз, когда назначается значение, 
+		для этого свойства будет вызываться сеттер.
 
 class Coordinate:
     def __init__(self, lat: float, long: float) -> None:
