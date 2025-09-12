@@ -1,0 +1,29 @@
+target-version = "py312"
+line-lenght = 120
+lint.select = ["ALL"]
+lint.ignore = [
+    "D100"
+    "D101"
+    "D102"
+    "D103"
+    "D104"
+    "D105"
+    "D107"
+    "RUFF001"
+    "RUFF002"
+    "RUFF003"
+    "S501"
+    "TRY400"
+    "BLE001"
+    "S321"
+    "DTZ002"
+    "DTZ005"
+]
+exclude = []
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.isort]
+lines-after-imports = 2
+
