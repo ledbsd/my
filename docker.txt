@@ -7,3 +7,53 @@ docker logs -f
 
 # при остановке контейнера чтобы удалялся
 docker run --rm
+
+# install
+===
+curl -fsSL https://get.docker.com -o get-docker.sh
+sh get-docker.sh
+===
+sudo apt remove docker docker-engine docker.io containerd runc
+sudo apt -y install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt update
+sudo apt install docker-ce docker-compose -y 
+sudo systemctl status docker 
+===
+
+# Dockerfile : https://docs.docker.com/reference/dockerfile/#from
+FROM python:3.7-slim
+RUN mkdir /app
+COPY requirements.txt /app
+RUN pip3 install -r /app/requirements.txt --no-cache-dir
+COPY api_yamdb/ /app
+# или
+COPY ["<файл/директория>", "<путь-внутри-контейнера>"] 
+WORKDIR /app
+# должна быть только одна:
+CMD ["python3", "manage.py", "runserver", "0:8000"] 
+
+# Когда нужно, чтобы какие-то файлы или директории не попали в контейнер, можно перечислить их в
+.dockerignore, принцип такой же, как с .gitignore.
+
+# сборка
+docker build -t yamdb .
+
+# запуск
+docker run --name <имя контейнера> -it -p 8000:8000 yamdb
+
+# зайти внутрь
+docker exec -it <CONTAINER ID> bash
+
+# старт/стоп docker compose
+docker-compose up -d --build
+docker-compose down -v 
+
+# очистка
+# неактивные контейнеры
+docker container prune
+# образы без контейнеров
+docker image prune
+# неиспользуемые образы, остановленные контейнеры, неиспользуемые тома, билд-кеш
+docker system prune
