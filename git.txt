@@ -11,7 +11,9 @@
 # git log -1 -p
 # git log --pretty=oneline
 список изменений в последнем коммите
+# git show
 # git show HEAD
+# git show id_коммита
 
 #----------------------- remote repo  ----------#
 
@@ -98,6 +100,9 @@
 # git revert HEAD
 или 
 # git revert <hash>
+
+Удаляем файл из отслеживания, но не удаляем из папки на компьютере.
+# git rm --cached new.py
 
 #----------------------- тэги  -----------------#
 
