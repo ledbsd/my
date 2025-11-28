@@ -78,8 +78,37 @@ with requests_mock.Mocker() as mock:
 	print(response.status_code)
 
 =======================================
+@pytest.yield_fixture
+def redis():
+	with Redis() as redis:
+		yield redis
+
+@pytest.yield_fixture
+def db():
+	with sqlite.connect("memory") as db:
+		yield db
+
+def test(db, redis):
+	redis.set(..)
+	db.execute(..)
+	
 =======================================
+@pytest.yield_fixture
+def transaction(db):
+	cursor = db.cursor()
+	try:
+		yield cursor
+		db.commit()
+	except:
+		db.rollback()
+
 =======================================
+fixture1.py
+fixture2.py
+conftest.py:
+
+pytest_plugins = ['fixture1', 'fixture2']
+
 =======================================
 =======================================
 =======================================
