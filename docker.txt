@@ -75,9 +75,13 @@ docker build -t yamdb .
 
 # запуск
 docker run --name <имя контейнера> -it -p 8000:8000 yamdb
+docker run --name db --env-file .env postgres:13.10 
 
 # зайти внутрь
 docker exec -it <CONTAINER ID> bash
+
+# версия compose
+docker compose version
 
 # старт/стоп docker compose
 docker-compose up -d --build
@@ -98,3 +102,14 @@ docker compose up -d build
 # без/с удалением контейнеров и сетей
 docker compose stop
 docker compose down
+
+==============================================================
+# registry
+sudo nano /etc/docker/daemon.json
+{
+"registry-mirrors": ["https://<mirror-address>"]
+}
+
+# настройки git-bash
+echo 'alias docker="winpty docker"' >> .bash_profile 
+echo 'alias docker="MSYS_NO_PATHCONV=1 docker"' >> ~/.bash_profile 
