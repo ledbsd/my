@@ -1,0 +1,58 @@
+======================================================================
+config.py:
+
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+	reload: bool = True
+	
+settings = Settings()
+
+
+main.py:
+
+from config import settings
+
+======================================================================
+Одноименные (uppercase) env-переменные переписывают BaseSettings
+Можно задать prefix
+
+config.py:
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class Settings(BaseSettings):
+	model_config = SettingsConfigDict(
+		env_prefix="APP_"
+	)
+	reload: bool = True
+	
+settings = Settings()
+
+======================================================================
+Подклассы:
+
+config.py:
+
+from pydantic import BaseModel
+
+class CorsSettings(BaseModel):
+	set1: int = "1"
+	set2: int = "1"
+
+class Settings(BaseSettings):
+	...
+	# Можно задать prefix APP_CORS__
+	env_prefix="APP_"
+	env_nested_delimiter="__"
+	...
+	cors: CorsSettings = CorsSettings()
+	
+main.py:
+
+a = settings.cors.set1
+======================================================================
+
+======================================================================
+======================================================================
+======================================================================
