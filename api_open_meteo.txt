@@ -1,6 +1,0 @@
-https://api.open-meteo.com/v1/forecast
-
-params={
-	"latitude": "55",
-	"longitude": "37",
-}

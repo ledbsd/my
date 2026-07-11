@@ -1,0 +1,38 @@
+============================================================================================
+MAP: с помощью итератора:
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        all_vcsa_tasks = executor.map(get_vcsa_tasks, infra.pvcsa_hostnames)
+
+============================================================================================
+MAP: с помощью враппера:
+	def wrapper(vcsa:str) -> AnalyzeResult:
+		return check_vcsa_uptime(vcsa, vcsa_config, uptime_day_values)
+
+	with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+		results = list(executor.map(wrapper, host_list))
+
+============================================================================================
+SUBMIT: c передачей реестра:
+
+    worker = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+    for vcsa in infrastructure.pvcsa_hostnames:
+        worker.submit(check_server, vcsa, metrics)
+    worker.shutdown(wait=True)
+
+============================================================================================
+SUBMIT: со сбором результатов:
+
+    executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+    for vcd_hostname in vcd_hostnames:
+        future = executor.submit(get_org_vdcs, vcd_hostname, vcd_api_config)
+        futures.append(future)
+
+    for future in futures:
+        if future.exception():
+            logger.error(future.exception())
+            exit_code = ExitCode.HAS_ERROR
+        else:
+            org_vdcs.extend(future.result())
+
+============================================================================================

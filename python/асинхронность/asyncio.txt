@@ -1,0 +1,398 @@
+https://docs-python.ru/tutorial/kurs-biblioteke-asyncio
+
+async with httpx.AsyncClient() as client:
+
+Ситуация						Что использовать?
+----------------------------------------------------------------------------------------------
+Нужно подождать задачу			await task()
+Запустить много задач сразу		asyncio.gather(*tasks)
+Запустить задачу в фоне			asyncio.create_task(coro())
+Выполнить блокирующий CPU код	loop.run_in_executor()
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: loop.run_in_executor()
+----------------------------------------------------------------------------------------------
+import asyncio
+
+def blocking_calc():
+    # Представь, что здесь очень тяжелые расчеты
+    time.sleep(5)
+    return "Готово!"
+
+async def main():
+    loop = asyncio.get_running_loop()
+    
+    # Запускаем блокирующий код в отдельном пуле потоков
+    print("Запускаю вычисления, не блокируя цикл...")
+    result = await loop.run_in_executor(None, blocking_calc)
+    print(f"Результат: {result}")
+
+asyncio.run(main())
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: asyncio.create_task(coro())
+----------------------------------------------------------------------------------------------
+import asyncio
+
+async def fetch_data(id):
+    await asyncio.sleep(2)
+    return f"Результат {id}"
+
+async def main():
+    task1 = asyncio.create_task(fetch_data(1))
+    task2 = asyncio.create_task(fetch_data(2))
+
+    result1 = await task1
+    result2 = await task2
+	
+task.done() - завершена ли задача;
+task.cancelled() - была ли задача отменена;
+task.result() - результат (если завершена успешно);
+task.exception() - исключение, если задача завершилась с ошибкой.
+worker_task.cancel() - сигнал отмены
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+asyncio.gather vs TaskGroup
+----------------------------------------------------------------------------------------------
+asyncio.gather:
+- удобен, когда нужно получить список результатов
+- по умолчанию не отменяет автоматически остальные задачи при ошибке одной[это не точно]
+- с return_exceptions=True превращает ошибки в значения, что полезно для агрегации, но может скрывать проблемы
+
+asyncio.TaskGroup:
+- делает явную иерархию задач;
+- при ошибке одной задачи автоматически отменяет остальные
+- не возвращает список результатов напрямую - результаты обычно собирают через замыкания/контейнеры или отдельные структуры
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: asyncio.gather
+----------------------------------------------------------------------------------------------
+asyncio.gather() – возвращает список результатов в том же порядке, в котором были переданы корутины
+По умолчанию, если одна из корутин бросает исключение, gather() немедленно пробрасывает 
+его вызывающему коду, отменяя остальные задачи[это не точно]. Параметр return_exceptions=True меняет 
+поведение: исключения возвращаются как результаты, не останавливая другие задачи.
+
+-----------------------------------------
+results = await asyncio.gather(
+	fetch_data(1),
+	fetch_data(2),
+	fetch_data(3),
+)
+
+-----------------------------------------
+async def main():
+    results = await asyncio.gather(
+        maybe_fail(1),
+        maybe_fail(2),
+        maybe_fail(3),
+        return_exceptions=True,
+    )
+
+    for i, result in enumerate(results, 1):
+        if isinstance(result, Exception):
+            print(f"Task {i} failed: {result}")
+        else:
+            print(f"Task {i}: {result}")
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: asyncio.wait
+----------------------------------------------------------------------------------------------
+asyncio.wait() 	 – более гибкий, позволяет задать таймауты и возвращает кортеж из двух наборов: завершенные (done) и ожидающие (pending) задачи
+
+tasks = [
+	asyncio.create_task(fetch_data(4)),
+	asyncio.create_task(fetch_data(5))
+]
+done, pending = await asyncio.wait(tasks)
+
+for task in done:
+print(f"Результат: {task.result()}")
+----------------------------------------------------------------------------------------------
+
+
+
+
+----------------------------------------------------------------------------------------------
+пример: asyncio.wait с режимами ожидания return_when
+----------------------------------------------------------------------------------------------
+- asyncio.ALL_COMPLETED (по умолчанию) — ждать, пока все задачи завершатся или будут отменены
+- asyncio.FIRST_COMPLETED — вернуться сразу, как только хоть одна задача завершится. Удобно для гонки: кто ответит первым из нескольких серверов
+- asyncio.FIRST_EXCEPTION — вернуться при первом исключении (или при завершении всех, если исключений нет)
+Ключевое отличие от gather(): wait()
+- принимает только Task-объекты (не корутины напрямую)
+- возвращает set-ы (порядок не сохраняется)
+- не отменяет pending-задачи автоматически — это нужно делать вручную.
+
+import asyncio
+
+async def task_with_delay(name: str, delay: float):
+    await asyncio.sleep(delay)
+    return f"{name} completed in {delay}s"
+
+async def main():
+    tasks = {
+        asyncio.create_task(task_with_delay("fast", 0.5)),
+        asyncio.create_task(task_with_delay("medium", 1.0)),
+        asyncio.create_task(task_with_delay("slow", 2.0)),
+    }
+
+    # FIRST_COMPLETED: вернуться, как только хоть одна задача завершится
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+    print(f"First done: {len(done)}, still pending: {len(pending)}")
+    for task in done:
+        print(f"  Result: {task.result()}")
+
+    # Отменяем оставшиеся задачи
+    for task in pending:
+        task.cancel()
+
+    # Ждём отмены
+    await asyncio.gather(*pending, return_exceptions=True)
+
+asyncio.run(main())
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+asyncio.wait(task, timeout=1.5)
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: TaskGroup()
+----------------------------------------------------------------------------------------------
+Если одна задача внутри TaskGroup бросает исключение, все остальные задачи группы автоматически отменяются
+
+async def main():
+	async with asyncio.TaskGroup() as tg:
+		task1 = tg.create_task(fetch_data(1))
+		task2 = tg.create_task(fetch_data(2))
+		task3 = tg.create_task(fetch_data(3))
+
+	# После выхода из блока все задачи гарантированно завершены
+	print(f"Результаты: {task1.result()}, {task2.result()}, {task3.result()}")
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: TaskGroup() c обработкой ошибок
+----------------------------------------------------------------------------------------------
+import asyncio
+
+
+async def ok_task() -> None:
+    await asyncio.sleep(2)
+    print("ok_task: завершилась успешно")
+
+
+async def failing_task() -> None:
+    await asyncio.sleep(1)
+    print("failing_task: сейчас будет ошибка")
+    raise RuntimeError("Ошибка в failing_task")
+
+
+async def main() -> None:
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(ok_task())
+            tg.create_task(failing_task())
+    except* RuntimeError as eg:
+        # В Python 3.11+ используется ExceptionGroup
+        print("Поймано исключение из группы задач:", eg)
+
+    print("main: блок TaskGroup завершён")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: Semaphore()
+----------------------------------------------------------------------------------------------
+import asyncio
+
+semaphore = asyncio.Semaphore(5)
+
+async def fetch_data(id):
+    async with semaphore:
+        print(f"Начинаем загрузку данных {id}")
+        await asyncio.sleep(2) # Имитация сетевого запроса
+        print(f"Данные {id} загружены")
+        return f"Результат {id}"
+
+
+async def main():
+    tasks = [fetch_data(i) for i in range(20)]
+    _ = await asyncio.gather(*tasks)
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример с aiosqlite
+----------------------------------------------------------------------------------------------
+import aiosqlite
+import asyncio
+
+
+async def create_table():
+    async with aiosqlite.connect('weather.db') as db:
+        await db.execute('CREATE TABLE IF NOT EXISTS requests '
+                         '(date text, city text, weather text)')
+        await db.commit()
+
+
+async def save_to_db(city, weather):
+    async with aiosqlite.connect('weather.db') as db:
+        await db.execute('INSERT INTO requests VALUES (?, ?, ?)',
+                         (datetime.now(), city, weather))
+        await db.commit()
+
+
+async def handle(request):
+    await save_to_db(city_ru, weather_ru)
+    return web.Response(text=json.dumps(result, ensure_ascii=False))
+
+
+async def main():
+    await create_table()
+    while True:
+        await asyncio.sleep(3600)
+
+
+if __name__ == '__main__':
+    asyncio.run(main())
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: обработка исключений в задачах
+----------------------------------------------------------------------------------------------
+import asyncio
+
+async def failing_task():
+    await asyncio.sleep(0.1)
+    raise ValueError("something went wrong")
+
+async def main():
+    task = asyncio.create_task(failing_task())
+
+    # Если не await-нуть task — исключение проглотится молча
+    # (с предупреждением "Task exception was never retrieved")
+    await asyncio.sleep(0.5)
+
+    try:
+        await task  # здесь исключение всплывает
+    except ValueError as e:
+        print(f"Caught: {e}")
+
+asyncio.run(main())
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: asyncio.Lock
+----------------------------------------------------------------------------------------------
+import asyncio
+import aiohttp
+from asyncio import Lock
+
+
+cache = dict()
+lock = Lock()
+
+
+async def request_remote():
+    print("Will request the website to get status.")
+    async with aiohttp.ClientSession() as session:
+        response = await session.get("http://127.0.0.1:9091/metrics")
+        return response.status
+
+
+async def get_value(key: str):
+    async with lock:
+        if key not in cache:
+            print(f"The value of key {key} is not in cache.")
+            value = await request_remote()
+            cache[key] = value
+        else:
+            print(f"The value of key {key} is already in cache.")
+            value = cache[key]
+        print(f"The value of {key} is {value}")
+        return value
+
+
+async def main():
+    task_one = asyncio.create_task(get_value("status"))
+    task_two = asyncio.create_task(get_value("status"))
+
+    await asyncio.gather(task_one, task_two)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+----------------------------------------------------------------------------------------------
+
+
+
+----------------------------------------------------------------------------------------------
+пример: asyncio.Semaphore
+----------------------------------------------------------------------------------------------
+import asyncio
+from asyncio import Semaphore
+from aiohttp import ClientSession
+
+
+async def get_url(url: str, session: ClientSession, semaphore: Semaphore):
+    print("Waiting to acquire semaphore...")
+    async with semaphore:
+        print("Semaphore acquired, requesting...")
+        await asyncio.sleep(3)
+        response = await session.get(url)
+        print("Finishing requesting")
+        return response.status
+
+
+async def main():
+    # Хотя мы запускаем 100 задач, одновременно будут выполняться только 10 задач.
+    semaphore: Semaphore = Semaphore(3)
+    async with ClientSession() as session:
+        tasks = [
+            asyncio.create_task(get_url("http://127.0.0.1:9091/metrics", session, semaphore))
+            for _ in range(100)
+        ]
+        await asyncio.gather(*tasks)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
