@@ -1,0 +1,21 @@
+from openai import OpenAI
+
+
+client = OpenAI(api_key="")
+
+
+def generate_response(text: str) -> str:
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=[
+            {"role": "system", "content": "Ты должен отвечать кратко"},
+            {"role": "user", "content": text},
+        ],
+        max_output_token=2500,
+    )
+    return response.output_text
+
+
+if __name__ == "__main__":
+    res = generate_response("How are you!")
+    print(res)
