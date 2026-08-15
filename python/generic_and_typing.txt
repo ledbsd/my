@@ -1,0 +1,68 @@
+-----------------------------------------------------------------------
+Generics
+
+ - можно использовать один в нескольких местах, главное чтобы сохранялась логика в пределах функции
+ - обычно заглавные буквы
+ - можно ограничить тип: Number = TypeVar("Number", int, float)
+
+-----------------------------------------------------------------------
+TypeVar, Callable:
+	from typing import TypeVar, Callable
+
+	T = TypeVar("T")
+	R = TypeVar("R")
+
+	def process_items(items: list[T], transformer: Callable[[T], R]) -> list[R]:
+		return [transformer(item) for item in items]
+		
+	def to_upper(s:str) -> str:
+		return s.upper()
+
+	result = process_items(["aaa", "bbb"], to_upper)
+
+-----------------------------------------------------------------------
+Optional (можно через |)
+	когда опционально тип либо None:
+	
+	def get_user_by_id(user_id: int) -> Optional[User]:
+		...return user
+		return None
+
+-----------------------------------------------------------------------
+Generic class
+	from typing import TypeVar, Generic
+	
+	T = TypeVar("T")
+	
+	@dataclass
+	class Box(Generic[T):
+		value: T
+	
+		def get(self) -> T:
+			return self.value
+
+	int_box = Box(1)
+	str_box = Box("aaa")
+
+-----------------------------------------------------------------------
+Ограничения в классах:
+	from typing import TypeVar, Protocol
+	
+	class Runnable(Protocol):
+		def run(self) -> None: ...
+	
+	T = TypeVar("T", bound=Runnable)
+
+-----------------------------------------------------------------------
+Ограничения в функциях:
+	def handle_event(ev: ClickEvent|KeyEvent|ResizeEvent) -> str:
+		match ev:
+			case ClickEvent(x=x, y=y):
+				return f"Click at {x}, {y}"
+			case KeyEvent(key=k):
+				return f"Pressed {k}"
+			case ResizeEvent(widht=w, height=h):
+				return f"Resized {w} x {h}"
+		raise ValueError("Неизвестное событие")
+
+-----------------------------------------------------------------------
