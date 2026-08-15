@@ -7,6 +7,7 @@ Generics
 
 -----------------------------------------------------------------------
 TypeVar, Callable:
+
 	from typing import TypeVar, Callable
 
 	T = TypeVar("T")
@@ -22,6 +23,7 @@ TypeVar, Callable:
 
 -----------------------------------------------------------------------
 Optional (можно через |)
+
 	когда опционально тип либо None:
 	
 	def get_user_by_id(user_id: int) -> Optional[User]:
@@ -30,6 +32,7 @@ Optional (можно через |)
 
 -----------------------------------------------------------------------
 Generic class
+
 	from typing import TypeVar, Generic
 	
 	T = TypeVar("T")
@@ -46,6 +49,7 @@ Generic class
 
 -----------------------------------------------------------------------
 Ограничения в классах:
+
 	from typing import TypeVar, Protocol
 	
 	class Runnable(Protocol):
@@ -55,6 +59,7 @@ Generic class
 
 -----------------------------------------------------------------------
 Ограничения в функциях:
+
 	def handle_event(ev: ClickEvent|KeyEvent|ResizeEvent) -> str:
 		match ev:
 			case ClickEvent(x=x, y=y):

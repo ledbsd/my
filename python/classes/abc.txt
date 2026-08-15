@@ -1,0 +1,31 @@
+------------------------------------------------------------------------
+abstract class
+  - разница между ABC и Protocol: 
+    ABC: наследуемся от описания
+	Protocol: не наследуемся от описания
+
+	from abc import ABC, abstractmethod
+
+	class DiscountPolicy(ABC):
+		@abstractmethod
+		def apply_discount(self, amount: float) -> float: ...
+
+
+	class VipDiscountPolicy(DiscountPolicy):
+		def apply_discount(self, amount: float) -> float:
+			return amount * 0.9
+			
+
+	class NoDiscountPolicy(DiscountPolicy):
+		def apply_discount(self, amount: float) -> float:
+			return amount
+
+
+	@dataclass
+	class DiscountCalculator:
+		policy: DiscountPolicy
+		
+		def calculate(self, amount: float) -> float:
+			return self.policy.apply_discount(amount)
+
+------------------------------------------------------------------------
