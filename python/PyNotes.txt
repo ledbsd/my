@@ -1,4 +1,24 @@
 ---------------------------------------------------------------------
+__init__.py 
+	позволяет упростить строки импорта
+
+	/config/__init__.py
+		from .main import AppSettings
+		__all__ = "AppSettings"
+	
+	/screens/__init__.py
+		from .main import MainScreen
+		__all__ = "MainScreen"
+	
+	main.py
+	- было:
+		from note_app.config.config import AppSettings
+		from note_app.screens.main import MainScreen
+	- стало:
+		from .config import AppSettings
+		from .screens import MainScreen
+
+---------------------------------------------------------------------
 .env
 вокруг знака равенства не должно быть пробелов, а строки пишутся без кавычек
 
@@ -8,7 +28,7 @@ import dotenv
 dotenv.load_dotenv(override=True)
 
 ---------------------------------------------------------------------
-В Python requests пакет автоматически отправляет следующие заголовки в GETзапросе:
+В Python requests пакет автоматически отправляет следующие заголовки в GET-запросе:
 
 	'Host':  '[The host. Example: jacobpadilla.com]'
 	'User-Agent':  'python-requests/[package version]'
@@ -25,7 +45,7 @@ dotenv.load_dotenv(override=True)
 ---------------------------------------------------------------------
 cписки
 	Python хранит указатель на начало массива и количество элементов в нём. 
-	Количество элементов хранится отдельно, поэтому функция len()также выполняется за время O(1) и не требует подсчёта элементов каждый раз.
+	Количество элементов хранится отдельно, поэтому функция len() также выполняется за время O(1) и не требует подсчёта элементов каждый раз.
 
 ---------------------------------------------------------------------
 генераторы
