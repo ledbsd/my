@@ -71,3 +71,24 @@ Generic class
 		raise ValueError("Неизвестное событие")
 
 -----------------------------------------------------------------------
+Импортируем только для типизации:
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+	from tests.plugins.identity.user import (
+		RegistrationData,
+		UserData,
+		UserAssertion,
+	)
+
+@pytest.mark.django_db()
+def test_valid_registration(
+	client: Client,
+	registration_data: 'RegistrationData',
+	user_data: 'UserData',
+	assert_correct_user: 'UserAssertion',
+) -> None:
+	"""Test with correct user data"""
+
+-----------------------------------------------------------------------
