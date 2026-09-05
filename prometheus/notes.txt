@@ -1,0 +1,7 @@
+как сделать ссылку из текста:
+	override ""fields with name" имя_столбца
+	data links "URL" ${__value.raw}
+
+
+error budget:
+	(1 - (кол_во_ошибок / кол_во_всех_запросов)) *100
