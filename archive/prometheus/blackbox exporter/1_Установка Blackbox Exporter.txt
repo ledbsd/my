@@ -1,0 +1,83 @@
+Установка Blackbox Exporter
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и выполняются с root привилегиями. 
+
+1. Скачиваем архив с Blackbox Exporter и распаковываем его.
+
+Для установки используется версия: 0.18, последняя стабильная версия на момент подготовки курса. 
+
+cd /tmp
+wget https://github.com/prometheus/blackbox_exporter/releases/download/v0.18.0/blackbox_exporter-0.18.0.linux-amd64.tar.gz 
+tar xvfz blackbox_exporter-0.18.0.linux-amd64.tar.gz
+cd blackbox_exporter-0.18.0.linux-amd64
+mv blackbox_exporter /usr/local/bin/
+
+Список версий можно посмотреть на странице github.
+
+2. Создаем каталог для конфигурационных файлов и копируем конфигурационные файл по умолчанию.
+
+mkdir /etc/blackbox_exporter
+cp blackbox.yml /etc/blackbox_exporter/
+
+3.  Создадим файл со списком ключей для запуска Blackbox Exporter.
+
+ Для того, чтобы каждый раз не перечитывать настройки systemd, список ключей вынесен в файл: /etc/sysconfig/blackbox_exporter
+
+cat <<EOF > /etc/sysconfig/blackbox_exporter
+OPTIONS="--config.file=/etc/blackbox_exporter/blackbox.yml"
+EOF
+
+!NB Поскольку Blackbox Exporter имеет конфигурационный файл и по умолчанию ищет его в том же каталоге, где и бинарный файл, то через ключ --config.file мы задаем путь до конфигурационного файла.
+
+4. Создаем systemd сервис:
+
+cat <<EOF > /usr/lib/systemd/system/blackbox_exporter.service 
+[Unit]
+Description=Prometheus exporter for machine metrics
+Documentation=https://github.com/prometheus/blackbox_exporter
+
+[Service]
+Restart=always
+User=root
+EnvironmentFile=/etc/sysconfig/blackbox_exporter
+ExecStart=/usr/local/bin/blackbox_exporter \$OPTIONS
+ExecReload=/bin/kill -HUP \$MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+С помощью директивы: EnvironmentFile все переменные из файла, указанного в этой директиве, добавляются в env. Это позволяет передавать список ключей для Node Exporter через переменную $OPTIONS без изменения службы.
+
+!NB Обратите внимание, Blackbox Exporter требует root привилегий для выполнения некоторых проверок.
+
+5. Обновляем список служб systemd и запускаем Blackbox Exporter.
+
+systemctl daemon-reload
+systemctl start blackbox_exporter
+systemctl enable blackbox_exporter
+
+6. Проверяем работу.
+
+По умолчанию, Blackbox Exporter слушает порт 9115
+
+curl -I http://localhost:9115
+
+Ответ должен быть примерно таким:
+
+HTTP/1.1 200 OK
+Content-Type: text/html
+Date: Tue, 05 Nov 2019 07:09:10 GMT
+Content-Length: 544
+
+NB!  Особенности использования Blackbox Exporter:
+
+1. По умолчанию, все проверки выполняются по IPv6. Рекомендуется изменить значение на IPv4. Для этого надо использовать директиву:  preferred_ip_protocol: ip4 в настройках каждого модуля.
+
+2. По ссылке /metrics Blackbox Exporter отдает данные о своей работе, такие как: потребление cpu, потребление ram и т.д. Результаты проверки доступны по  url /probe.
+
+3. Для получения подробностей по проверке в параметры запроса нужно добавить: debug=true
+
+Документация

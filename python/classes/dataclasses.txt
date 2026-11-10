@@ -48,10 +48,22 @@ with open('data.json') as file:
 infra = from_dict(List, data)
 print(infra)
 for pod in infra.pods:
-    if pod.name == 'pd03':
+    if pod.name == 'pdXX':
         print(pod.vcsa)
 
-====================================================================================	
+====================================================================================
+# Value Objects (VO)
+
+@dataclass(frozen=True)
+class TimeSlot:
+    start: datetime
+    end: datetime
+
+    def __post_init__(self) -> None:
+        # Invariant: start < end
+        if self.start >= self.end:
+            raise ValueError("TimeSlot invariant violated: start must be < end")	
+
 ====================================================================================	
 ====================================================================================	
 ====================================================================================	

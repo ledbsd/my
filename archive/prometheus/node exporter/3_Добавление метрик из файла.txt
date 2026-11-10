@@ -1,0 +1,36 @@
+Добавление метрик из файла
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и выполняются с root привилегиями.
+
+1. Создадим файл, который будет содержать метрики.
+
+mkdir /tmp/node_exporter/
+
+cat <<EOF > /tmp/node_exporter/node_exporter_custom_metric.prom
+#TYPE slurm_demo_metric counter
+slurm_demo_metric 100
+EOF
+
+2. Настраиваем Node Exporter для чтения метрик из файла.
+
+С этой целью для ключа collector.textfile.directory укажем в качестве значения путь каталога, содержащий файлы с метриками:
+
+cat <<EOF > /etc/sysconfig/node_exporter
+OPTIONS="--collector.textfile.directory=/tmp/node_exporter"
+EOF
+
+В указанном каталоге Node Exporter читает все файлы по маске *.prom
+
+3. Перезапустим службу Node Exporter:
+
+systemctl restart node_exporter
+
+4. Проверим, что в экспозиции появилась новая метрика:
+
+curl -si http://localhost:9100/metrics | grep slurm
+
+Ответ должен быть таким:
+
+# HELP slurm_demo_metric Metric read from /tmp/node_exporter/node_exporter_custom_metric.prom
+# TYPE slurm_demo_metric counter
+slurm_demo_metric 100

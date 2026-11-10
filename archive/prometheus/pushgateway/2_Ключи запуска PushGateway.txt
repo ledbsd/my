@@ -1,0 +1,46 @@
+Ключи запуска PushGateway
+Далее приведен список наиболее востребованных ключей Pushgateway:
+
+--log.level
+
+Default: info
+
+Данный ключ устанавливает уровень логирования. Возможные уровни логирования: debug, info, warn, error.
+
+--log.format
+
+Default: logfmt
+
+Данный ключ устанавливает формат логов. Доступные форматы: logfmt и json.
+
+--web.listen-address
+
+Default: ":9091"
+
+Данный ключ устанавливает адрес и порт, по которому будет доступен PushGateway.
+
+--web.telemetry-path
+
+Default: "/metrics"
+
+--web.enable-admin-api
+
+Default: -
+
+Разрешить endpoints для администрирования. Это может потребоваться для очистки данных pushgateway.
+
+--persistence.file
+
+Default: -
+
+Файл для сохранения метрик. По умолчанию, значения метрик сохраняются только в памяти.
+
+--persistence.interval
+
+Default: 5m
+
+Минимальное время, через которое данные будут сохранены в постоянный файл.
+
+Полный список ключей можно просмотреть с помощью команды help:
+
+pushgateway --help

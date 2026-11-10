@@ -1,0 +1,68 @@
+Установка Node Exporter
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и команды выполняются с root привилегиями. 
+
+Над текстом нажмите кнопку "Создать стенд". Это кнопка активна в 1-ом пункте курса. Данные для авторизации будут в письме, которое придёт на e-mail привязанный к личному кабинету. Письмо придёт, после запуска стенда. Если стенд уже запущен, то можете в нём продолжать. Стенд один на весь курс.
+
+1. Скачиваем архив с Node Exporter и распаковываем его.
+
+Для установки используется версия: 0.18.1, последняя стабильная версия на момент подготовки курса.
+
+cd /tmp
+wget https://github.com/prometheus/node_exporter/releases/download/v0.18.1/node_exporter-0.18.1.linux-amd64.tar.gz
+tar xvfz node_exporter-0.18.1.linux-amd64.tar.gz
+cd node_exporter-0.18.1.linux-amd64
+mv node_exporter /usr/local/bin/
+
+Список версий можно посмотреть на странице github.
+
+2.  Создадим файл со списком ключей для запуска Node Exporter.
+
+Node Exporter не имеет конфигурационного файла и настраивается дополнительными ключами. Для того, чтобы каждый раз не перечитывать настройки systemd, список ключей вынесен в файл: /etc/sysconfig/node_exporter.
+
+cat <<EOF > /etc/sysconfig/node_exporter
+OPTIONS=""
+EOF
+
+3. Создаем systemd сервис.
+
+cat <<EOF > /usr/lib/systemd/system/node_exporter.service 
+[Unit]
+Description=Prometheus Node exporter for machine metrics
+Documentation=https://github.com/prometheus/node_exporter
+
+[Service]
+Restart=always
+User=root
+EnvironmentFile=/etc/sysconfig/node_exporter
+ExecStart=/usr/local/bin/node_exporter \$OPTIONS
+ExecReload=/bin/kill -HUP \$MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+С помощью директивы: EnvironmentFile все переменные из файла, указанного в этой директиве, добавляются в env, это позволяет нам передавать список ключей для Node Exporter через переменную $OPTIONS без изменения службы.
+
+NB! Обратите внимание, Node Exporter требует root привилегий.
+
+4. Обновляем список служб systemd, запускаем Node exporter и добавляем в автозапуск.
+
+systemctl daemon-reload
+systemctl start node_exporter
+systemctl enable node_exporter
+
+5. Проверяем работу.
+
+По умолчанию, Node Exporter слушает порт 9100.
+
+curl -I http://localhost:9100
+
+Ответ должен быть примерно таким:
+
+HTTP/1.1 200 OK
+Date: Fri, 08 Nov 2019 14:01:07 GMT
+Content-Length: 150
+Content-Type: text/html; charset=utf-8

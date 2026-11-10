@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------
+Позволяет использовать класс для аннотации:
+
+from __future__ import annotations
+
+class ReservationAggregate:
+	@classmethod
+	def create(cls, reservation_id: str, slot: TimeSlot, party_size: PartySize) -> "ReservationAggregate":
+		...
+
 ---------------------------------------------------------------------
 ИЛИ (or) - возвращает первый истинный операнд или последний
 И (and)  - возвращает первый ложный операнд или последний

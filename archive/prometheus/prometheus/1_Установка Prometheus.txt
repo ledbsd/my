@@ -1,0 +1,107 @@
+Установка Prometheus
+
+Практика выполняется на monitoring сервере, доступ к нему осуществляется по IP адресу и команды выполняются с root привилегиями.
+
+Над текстом нажмите кнопку "Создать стенд". Это кнопка активна в 1-ом пункте курса. Данные для авторизации будут в письме, которое придёт на e-mail привязанный к личному кабинету. Письмо придёт, после запуска стенда. Если стенд уже запущен, то можете в нём продолжать. Стенд один на весь курс.
+
+1. Создаем пользователя Prometheus:
+
+useradd prometheus --comment "Prometheus server user" --shell /bin/false
+
+Для запуска Prometheus не требуется root привилегий и, с точки зрения безопасности, лучше его запускать от непривилегированного пользователя.
+
+2. Скачиваем архив с Prometheus и распаковываем его.
+
+Для установки используется версия: 2.24.1, последняя стабильная версия на момент подготовки курса. 
+
+cd /tmp
+wget https://github.com/prometheus/prometheus/releases/download/v2.24.1/prometheus-2.24.1.linux-amd64.tar.gz
+tar xvfz prometheus-2.24.1.linux-amd64.tar.gz
+cd prometheus-2.24.1.linux-amd64
+mv prometheus /usr/local/bin/
+
+Список версий можно посмотреть странице github
+
+3. Создаем каталог для конфигурационных файлов, копируем конфигурационные файлы по умолчанию и выставляем на них права:
+
+mkdir /etc/prometheus
+cp prometheus.yml /etc/prometheus/
+chown -R prometheus:prometheus /etc/prometheus
+
+4. Создаем каталог для Prometheus DB и выставляем на него права:
+
+mkdir /var/lib/prometheus
+chown prometheus:prometheus /var/lib/prometheus
+
+5. Создадим файл со списком ключей для запуска Prometheus.
+
+ Для того чтобы каждый раз не перечитывать настройки systemd, список ключей вынесен в файл: /etc/sysconfig/prometheus
+
+cat <<EOF > /etc/sysconfig/prometheus
+OPTIONS="--config.file=/etc/prometheus/prometheus.yml \
+--storage.tsdb.path=/var/lib/prometheus/"
+EOF
+
+NB! Поскольку Prometheus имеет конфигурационный файл и, по умолчанию, ищет его в том же каталоге, где и бинарный файл, то через ключ --config.file задаем путь до конфигурационного файла.
+
+Также с помощью ключа: --storage.tsdb.path задаем путь до каталога, где будет располагаться Prometheus DB.
+
+6. Создаем systemd сервис:
+
+cat <<EOF > /usr/lib/systemd/system/prometheus.service 
+[Unit]
+Description=Prometheus Server
+Documentation=https://github.com/prometheus/prometheus
+
+[Service]
+Restart=always
+User=prometheus
+Group=prometheus
+EnvironmentFile=/etc/sysconfig/prometheus
+ExecStart=/usr/local/bin/prometheus \$OPTIONS
+ExecReload=/bin/kill -HUP \$MAINPID
+TimeoutStopSec=20s
+SendSIGKILL=no
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+С помощью директивы: EnvironmentFile все переменные из файла, указанного в этой директиве, добавляются в env, это позволяет передавать список ключей для Prometheus через переменную $OPTIONS без изменения службы.
+
+7. Обновляем список служб systemd и запускаем Prometheus:
+
+systemctl daemon-reload
+systemctl start prometheus
+systemctl enable prometheus
+
+8. Проверяем работу.
+
+По умолчанию, Prometheus слушает порт 9090.
+
+curl -XGET -IL http://localhost:9090/graph
+
+Ответ должен быть примерно таким:
+
+HTTP/1.1 200 OK
+Date: Thu, 14 Nov 2019 07:05:12 GMT
+Content-Type: text/html; charset=utf-8
+Transfer-Encoding: chunked
+
+Открываем в браузере:
+
+http://<IP>:9090/graph
+
+где IP необходимо заменить на IP Вашего основного сервера.
+
+9. Проверка конфигурационного файла.
+
+NB!  В состав Prometheus входит утилита для тестирования конфигурационных файлов. К слову, проверять конфигурационный файл после каждого изменения – хорошая привычка.
+
+Данная утилита входит в состав Prometheus. Для установки скопируем ее аналогично Prometheus:
+
+cp promtool /usr/local/bin/
+
+Для проверки конфигурационного файла запускаем команду:
+
+promtool check config /etc/prometheus/prometheus.yml 
